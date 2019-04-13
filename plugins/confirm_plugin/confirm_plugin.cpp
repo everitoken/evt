@@ -12,7 +12,7 @@
 
 #include <boost/asio.hpp>
 #include <fc/io/json.hpp>
-#include <fc/crypto/city.hpp>
+#include <fc/contianer/ring_vector.hpp>
 
 #include <evt/chain_plugin/chain_plugin.hpp>
 #include <evt/chain/plugin_interface.hpp>
@@ -33,8 +33,13 @@ using evt::chain::transaction_trace_ptr;
 
 class confirm_plugin_impl : public std::enable_shared_from_this<confirm_plugin_impl> {
 public:
-    using deferred_pair = std::pair<deferred_id, steady_timer_ptr>;
-    enum { kDeferredId = 0, kTimer };
+    struct trx_entry {
+        deferred_id  id;
+        confirm_mode mode;
+        uint32_t     rounds;
+        uint32_t     target_rounds;
+        name128      latest_producer;
+    };
 
 public:
     confirm_plugin_impl(controller& db)
@@ -43,14 +48,13 @@ public:
 
 public:
     void init();
-    void get_trx_id_for_link_id(const link_id_type& link_id, deferred_id id);
-    void add_and_schedule(const link_id_type& link_id, deferred_id id);
+    void add_and_schedule(const transaction_id_type& trx_id, block_num_type block_num, deferred_id id);
 
 private:
     void applied_block(const block_state_ptr& bs);
 
     template<typename T>
-    void response(const link_id_type& link_id, T&& response_fun);
+    void response(const transaction_id_type& trx_id, T&& response_fun);
 
 public:
     controller& db_;
@@ -58,8 +62,23 @@ public:
     std::atomic_bool init_{false};
     uint32_t         timeout_;
 
+    fc::ring_vector<block_state_ptr> block_states_;
+    uint32_t                         lib_;
+
     std::optional<boost::signals2::scoped_connection> accepted_block_connection_;
 };
+
+void
+confirm_plugin_impl::init() {
+    init_ = true;
+
+    auto& chain_plug = app().get_plugin<chain_plugin>();
+    auto& chain      = chain_plug.chain();
+
+    accepted_block_connection_.emplace(chain.accepted_block.connect([&](const chain::block_state_ptr& bs) {
+        applied_block(bs);
+    }));
+}
 
 void
 confirm_plugin_impl::applied_block(const block_state_ptr& bs) {
@@ -115,41 +134,8 @@ confirm_plugin_impl::response(const link_id_type& link_id, T&& response_fun) {
 }
 
 void
-confirm_plugin_impl::add_and_schedule(const link_id_type& link_id, deferred_id id) {
-    auto it = link_ids_.emplace(link_id, std::make_pair(id, std::make_shared<steady_timer>(app().get_io_service())));
+confirm_plugin_impl::add_and_schedule(const transaction_id_type& trx_id, block_num_type block_num, deferred_id id) {
 
-    auto timer = std::get<kTimer>(it->second);
-    timer->expires_from_now(std::chrono::milliseconds(timeout_));
-    
-    auto wptr = std::weak_ptr<confirm_plugin_impl>(shared_from_this());
-    timer->async_wait([wptr, link_id](auto& ec) {
-        auto self = wptr.lock();
-        if(self && ec != boost::asio::error::operation_aborted) {
-            auto pair = self->link_ids_.equal_range(link_id);
-            if(pair.first == self->link_ids_.end()) {
-                wlog("Cannot find context for id: ${id}", ("id",link_id));
-                return;
-            }
-            
-            auto ids = std::vector<deferred_id>();
-            std::for_each(pair.first, pair.second, [&ids](auto& it) {
-                ids.emplace_back(std::get<kDeferredId>(it.second));
-            });
-
-            self->link_ids_.erase(link_id);
-
-            try {
-                EVT_THROW(chain::exceed_evt_link_watch_time_exception, "Exceed EVT-Link watch time: ${time} ms", ("time",self->timeout_));
-            }
-            catch(...) {
-                http_plugin::handle_exception("evt_link", "get_trx_id_for_link_id", "", [&ids](auto code, auto body) {
-                    for(auto id : ids) {
-                        app().get_plugin<http_plugin>().set_deferred_response(id, code, body);
-                    }
-                });
-            }
-        }
-    });
 }
 
 void
@@ -174,18 +160,6 @@ confirm_plugin_impl::get_trx_id_for_link_id(const link_id_type& link_id, deferre
         // cannot find now, put into map
         add_and_schedule(link_id, id);
     }
-}
-
-void
-confirm_plugin_impl::init() {
-    init_ = true;
-
-    auto& chain_plug = app().get_plugin<chain_plugin>();
-    auto& chain      = chain_plug.chain();
-
-    accepted_block_connection_.emplace(chain.accepted_block.connect([&](const chain::block_state_ptr& bs) {
-        applied_block(bs);
-    }));
 }
 
 confirm_plugin_impl::~confirm_plugin_impl() {}

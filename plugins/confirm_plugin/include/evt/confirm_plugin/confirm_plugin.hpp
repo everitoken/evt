@@ -16,7 +16,7 @@ using namespace appbase;
 class confirm_plugin : public plugin<confirm_plugin> {
 public:
     enum class confirm_mode {
-        bypass = 0,
+        bypass = 0,     // return directly
         strict,
         medium,
         relax
@@ -26,7 +26,7 @@ public:
         transaction_id_type id;
         block_num_type      block_num;
         confirm_mode        mode;
-        uint32_t            number;
+        uint32_t            rounds;
     };
 
 public:
