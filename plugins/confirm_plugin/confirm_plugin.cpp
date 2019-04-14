@@ -33,12 +33,23 @@ using evt::chain::transaction_trace_ptr;
 
 class confirm_plugin_impl : public std::enable_shared_from_this<confirm_plugin_impl> {
 public:
-    struct trx_entry {
+    struct peer_entry {
         deferred_id  id;
         confirm_mode mode;
         uint32_t     rounds;
         uint32_t     target_rounds;
-        name128      latest_producer;
+    };
+    using peer_vec = fc::small_vector<peer_entry, 2>;
+
+    struct trx_entry {
+        name128  latest_producer;
+        peer_vec peers;
+    };
+
+    enum class confirm_result {
+        lib = 0,
+        pass,
+        fail
     };
 
 public:
@@ -52,9 +63,7 @@ public:
 
 private:
     void applied_block(const block_state_ptr& bs);
-
-    template<typename T>
-    void response(const transaction_id_type& trx_id, T&& response_fun);
+    void response(deferred_id id, confirm_result);
 
 public:
     controller& db_;
@@ -62,8 +71,9 @@ public:
     std::atomic_bool init_{false};
     uint32_t         timeout_;
 
-    fc::ring_vector<block_state_ptr> block_states_;
     uint32_t                         lib_;
+    fc::ring_vector<block_state_ptr> block_states_;
+    llvm::StringMap<trx_entry>       trx_entries_;
 
     std::optional<boost::signals2::scoped_connection> accepted_block_connection_;
 };
@@ -110,32 +120,13 @@ confirm_plugin_impl::applied_block(const block_state_ptr& bs) {
 template<typename T>
 void
 confirm_plugin_impl::response(const link_id_type& link_id, T&& response_fun) {
-    auto sz = link_ids_.count(link_id);
-    if(sz == 0) {
-        return;
-    }
-    auto json = response_fun();
-    auto wptr = std::weak_ptr<confirm_plugin_impl>(shared_from_this());
-    boost::asio::post(app().get_io_service(), [wptr, json, link_id] {
-        auto self = wptr.lock();
-        if(!self) {
-            return;
-        }
-        auto pair = self->link_ids_.equal_range(link_id);
-        if(pair.first != self->link_ids_.end()) {
-            std::for_each(pair.first, pair.second, [&](auto& it) {
-                app().get_plugin<http_plugin>().set_deferred_response(std::get<kDeferredId>(it.second), 200, json);
-            });
 
-            self->link_ids_.erase(link_id);
-            return;
-        }
-    });
 }
 
 void
 confirm_plugin_impl::add_and_schedule(const transaction_id_type& trx_id, block_num_type block_num, deferred_id id) {
 
+    auto bs = block_states_[(block_num - lib_ - 1)];
 }
 
 void
