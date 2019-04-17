@@ -27,12 +27,14 @@ using boost::condition_variable_any;
 #include <evt/chain/controller.hpp>
 #include <evt/chain/exceptions.hpp>
 #include <evt/chain/execution_context.hpp>
+#include <evt/chain/execution_context_impl.hpp>
 #include <evt/chain/genesis_state.hpp>
 #include <evt/chain/plugin_interface.hpp>
 #include <evt/chain/snapshot.hpp>
 #include <evt/chain/transaction.hpp>
 #include <evt/chain/types.hpp>
 #include <evt/chain/token_database.hpp>
+#include <evt/chain/token_database_cache.hpp>
 #include <evt/chain/contracts/abi_serializer.hpp>
 #include <evt/chain/contracts/evt_contract_abi.hpp>
 #include <evt/utilities/spinlock.hpp>
@@ -57,7 +59,9 @@ private:
     using inblock_ptr = std::tuple<block_state_ptr, bool>; // true for irreversible block
 
 public:
-    postgres_plugin_impl(const controller& control) : control_(control) {}
+    postgres_plugin_impl(const controller& control)
+        : control_(control)
+        , exec_ctx_(dynamic_cast<const evt_execution_context&>(control.get_execution_context())) {}
     ~postgres_plugin_impl();
 
 public:
@@ -83,7 +87,8 @@ public:
     pg          db_;
     std::string connstr_;
 
-    const controller& control_;
+    const controller&            control_;
+    const evt_execution_context& exec_ctx_;
 
     bool     configured_          = false;
     uint32_t last_sync_block_num_ = 0;
@@ -293,6 +298,15 @@ postgres_plugin_impl::process_block(const block_state_ptr block, std::deque<tran
         break;                                               \
     }
 
+#define READ_DB_TOKEN(TYPE, PREFIX, KEY, VPTR, EXCEPTION, FORMAT, ...) \
+    try {                                                              \
+        using vtype = typename decltype(VPTR)::element_type;           \
+        VPTR = cache.template read_token<vtype>(TYPE, PREFIX, KEY);    \
+    }                                                                  \
+    catch(token_database_exception&) {                                 \
+        EVT_THROW2(EXCEPTION, FORMAT, __VA_ARGS__);                    \
+    }
+
 void
 postgres_plugin_impl::process_action(const action& act, trx_context& tctx) {
     switch((uint64_t)act.name) {
@@ -303,26 +317,46 @@ postgres_plugin_impl::process_action(const action& act, trx_context& tctx) {
     case_act(destroytoken, del_token);
     case_act(newgroup,     add_group);
     case_act(updategroup,  upd_group);
-    case_act(newfungible,  add_fungible);
-    case_act(updfungible,  upd_fungible);
+    case N(newfungible): {
+        exec_ctx_.invoke_action<newfungible>(act, [&](const auto& nf) {
+            auto& cache = control_.token_db_cache();
+            auto  ft    = make_empty_cache_ptr<fungible_def>();
+            READ_DB_TOKEN(token_type::fungible, std::nullopt, nf.sym.id(), ft, unknown_fungible_exception,
+                "Cannot find FT with sym id: {}", nf.sym.id());
+
+            db_.add_fungible(tctx, *ft); 
+        });
+        break;
+    }
+    case N(updfungible): {
+        auto ver = exec_ctx_.get_current_version(N(updfungible));
+        if(ver == 1) {
+            db_.upd_fungible(tctx, act.data_as<updfungible>());
+        }
+        else if(ver == 2) {
+            db_.upd_fungible(tctx, act.data_as<updfungible_v2>());
+        }
+        break;
+    }
     case N(addmeta): {
         db_.add_meta(tctx, act);
         break;
     }
     case N(everipass): {
-        auto& ep    = act.data_as<const everipass&>();
-        auto  link  = ep.link;
-        auto  flags = link.get_header();
-        auto& d     = *link.get_segment(evt_link::domain).strv;
-        auto& t     = *link.get_segment(evt_link::token).strv;
+        exec_ctx_.invoke_action<everipass>(act, [&](const auto& ep) {
+            auto  link  = ep.link;
+            auto  flags = link.get_header();
+            auto& d     = *link.get_segment(evt_link::domain).strv;
+            auto& t     = *link.get_segment(evt_link::token).strv;
 
-        if(flags & evt_link::destroy) {
-            auto dt   = destroytoken();
-            dt.domain = d;
-            dt.name   = t;
+            if(flags & evt_link::destroy) {
+                auto dt   = destroytoken();
+                dt.domain = d;
+                dt.name   = t;
 
-            db_.del_token(tctx, dt);
-        }
+                db_.del_token(tctx, dt);
+            }
+        });
         break;
     }
     }; // switch
@@ -453,31 +487,16 @@ postgres_plugin_impl::init(bool init_db) {
         }
 
         // HACK: Add EVT and PEVT manually
+        auto tctx = db_.new_trx_context();
+
         auto gs = chain::genesis_state();
-
-        auto get_nfact = [](auto& f) {
-            auto nf = newfungible();
-
-            nf.name         = f.name;
-            nf.sym_name     = f.sym_name;
-            nf.sym          = f.sym;
-            nf.creator      = f.creator;
-            nf.issue        = std::move(f.issue);
-            nf.manage       = std::move(f.manage);
-            nf.total_supply = f.total_supply;
-
-            auto nfact = action(N128(.fungible), (name128)std::to_string(nf.sym.id()), nf);
-            return nfact;
-        };
+        db_.add_fungible(tctx, gs.evt);
+        db_.add_fungible(tctx, gs.pevt);
 
         auto ng  = newgroup();
         ng.name  = N128(.everiToken);
         ng.group = gs.evt_org;
-
-        auto tctx = db_.new_trx_context();
-        process_action(get_nfact(gs.evt), tctx);
-        process_action(get_nfact(gs.pevt), tctx);
-        process_action(action(N128(.group), N128(.everiToken), ng), tctx);
+        db_.add_group(tctx, ng);
 
         tctx.commit();
     }

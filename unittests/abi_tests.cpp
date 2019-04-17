@@ -1594,9 +1594,13 @@ TEST_CASE("setpsvbonus_v2_abi_test", "[abis]") {
     auto& abis = get_evt_abi();
 
     auto var = fc::json::from_string(setpsvbonus_test_data);
+    auto mv  = fc::mutable_variant_object(var);
+    mv["sym_id"] = 5;
+    var = mv;
+    
     auto psb = var.as<setpsvbonus_v2>();
 
-    CHECK(psb.sym == symbol(5, 3));
+    CHECK(psb.sym_id == 5);
     CHECK(psb.rate.value().str() == "0.15");
     CHECK(psb.rate.to_string() == "0.15");
     CHECK(psb.base_charge == asset(10, symbol(5,3)));

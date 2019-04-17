@@ -294,7 +294,7 @@ EVT_ACTION_IMPL_BEGIN(newdomain) {
 
     auto ndact = context.act.data_as<ACT>();
     try {
-        EVT_ASSERT(context.has_authorized(ndact.name, N128(.create)), action_authorize_exception, "Invalid authorization fields(domain and key).");
+        EVT_ASSERT(context.has_authorized(ndact.name, N128(.create)), action_authorize_exception, "Invalid authorization fields in action(domain and key).");
 
         check_name_reserved(ndact.name);
 
@@ -343,7 +343,7 @@ EVT_ACTION_IMPL_BEGIN(issuetoken) {
     auto itact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(itact.domain, N128(.issue)), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(!itact.owner.empty(), token_owner_exception, "Owner cannot be empty.");
         for(auto& o : itact.owner) {
             check_address_reserved(o);
@@ -409,7 +409,7 @@ EVT_ACTION_IMPL_BEGIN(transfer) {
     auto ttact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(ttact.domain, ttact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(!ttact.to.empty(), token_owner_exception, "New owner cannot be empty.");
         for(auto& addr : ttact.to) {
             check_address_reserved(addr);
@@ -438,7 +438,7 @@ EVT_ACTION_IMPL_BEGIN(destroytoken) {
     auto dtact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(dtact.domain, dtact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -472,7 +472,7 @@ EVT_ACTION_IMPL_BEGIN(newgroup) {
     auto ngact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.group), ngact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(!ngact.group.key().is_generated(), group_key_exception, "Group key cannot be generated key");
         EVT_ASSERT(ngact.name == ngact.group.name(), group_name_exception,
             "Group name not match, act: ${n1}, group: ${n2}", ("n1",ngact.name)("n2",ngact.group.name()));
@@ -496,7 +496,7 @@ EVT_ACTION_IMPL_BEGIN(updategroup) {
     auto ugact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.group), ugact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(ugact.name == ugact.group.name(), group_name_exception, "Names in action are not the same.");
 
         DECLARE_TOKEN_DB()
@@ -707,7 +707,7 @@ EVT_ACTION_IMPL_BEGIN(newfungible) {
     auto nfact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(nfact.sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(!nfact.name.empty(), fungible_name_exception, "FT name cannot be empty");
         EVT_ASSERT(!nfact.sym_name.empty(), fungible_symbol_exception, "FT symbol name cannot be empty");
         EVT_ASSERT(nfact.sym.id() > 0, fungible_symbol_exception, "FT symbol id should be larger than zero");
@@ -786,7 +786,7 @@ EVT_ACTION_IMPL_BEGIN(updfungible) {
     auto ufact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(ufact.sym_id)), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -845,7 +845,7 @@ EVT_ACTION_IMPL_BEGIN(issuefungible) {
     try {
         auto sym = ifact.number.sym();
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         check_address_reserved(ifact.address);
 
         DECLARE_TOKEN_DB()
@@ -874,7 +874,7 @@ EVT_ACTION_IMPL_BEGIN(transferft) {
     try {
         auto sym = tfact.number.sym();
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(tfact.from != tfact.to, fungible_address_exception, "From and to are the same address");
         EVT_ASSERT(sym != pevt_sym(), asset_symbol_exception, "Pinned EVT cannot be transfered");
         check_address_reserved(tfact.to);
@@ -893,7 +893,7 @@ EVT_ACTION_IMPL_BEGIN(recycleft) {
     try {
         auto sym = rfact.number.sym();
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(sym != pevt_sym(), asset_symbol_exception, "Pinned EVT cannot be recycled");
 
         auto addr = get_fungible_address(sym);
@@ -911,7 +911,7 @@ EVT_ACTION_IMPL_BEGIN(destroyft) {
     try {
         auto sym = dfact.number.sym();
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(sym != pevt_sym(), fungible_symbol_exception, "Pinned EVT cannot be destroyed");
 
         auto addr = address();
@@ -929,7 +929,7 @@ EVT_ACTION_IMPL_BEGIN(evt2pevt) {
     try {
         EVT_ASSERT(epact.number.sym() == evt_sym(), asset_symbol_exception, "Only EVT tokens can be converted to Pinned EVT tokens");
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(evt_sym().id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         check_address_reserved(epact.to);
 
         transfer_fungible(context, epact.from, epact.to, asset(epact.number.amount(), pevt_sym()), N(evt2pevt), false /* pay bonus */);
@@ -1170,7 +1170,7 @@ EVT_ACTION_IMPL_BEGIN(newsuspend) {
     auto nsact = context.act.data_as<newsuspend>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.suspend), nsact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         auto now = context.control.pending_block_time();
         EVT_ASSERT(nsact.trx.expiration > now, suspend_expired_tx_exception,
@@ -1207,7 +1207,7 @@ EVT_ACTION_IMPL_BEGIN(aprvsuspend) {
     auto& aeact = context.act.data_as<add_clr_t<ACT>>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.suspend), aeact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -1243,7 +1243,7 @@ EVT_ACTION_IMPL_BEGIN(cancelsuspend) {
     auto& csact = context.act.data_as<add_clr_t<ACT>>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.suspend), csact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -1267,7 +1267,7 @@ EVT_ACTION_IMPL_BEGIN(execsuspend) {
     auto& esact = context.act.data_as<add_clr_t<ACT>>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.suspend), esact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -1376,7 +1376,7 @@ EVT_ACTION_IMPL_BEGIN(everipass) {
         auto& d = *link.get_segment(evt_link::domain).strv;
         auto& t = *link.get_segment(evt_link::token).strv;
 
-        EVT_ASSERT(context.has_authorized(name128(d), name128(t)), action_authorize_exception, "Invalid authorization fields(domain and key).");
+        EVT_ASSERT(context.has_authorized(name128(d), name128(t)), action_authorize_exception, "Invalid authorization fields in action(domain and key).");
 
         if(!context.control.loadtest_mode()) {
             auto  ts    = *link.get_segment(evt_link::timestamp).intv;
@@ -1436,7 +1436,7 @@ EVT_ACTION_IMPL_BEGIN(everipay) {
 
         auto& lsym_id = *link.get_segment(evt_link::symbol_id).intv;
         EVT_ASSERT(context.has_authorized(N128(.fungible), name128::from_number(lsym_id)), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         if(!context.control.loadtest_mode()) {
             auto  ts    = *link.get_segment(evt_link::timestamp).intv;
@@ -1521,7 +1521,7 @@ EVT_ACTION_IMPL_BEGIN(prodvote) {
     auto& pvact = context.act.data_as<add_clr_t<ACT>>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.prodvote), pvact.key), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         EVT_ASSERT(pvact.value > 0 && pvact.value < 1'000'000, prodvote_value_exception, "Invalid prodvote value: ${v}", ("v",pvact.value));
 
         auto  conf     = context.control.get_global_properties().configuration;
@@ -1648,7 +1648,7 @@ EVT_ACTION_IMPL_BEGIN(updsched) {
     auto usact = context.act.data_as<ACT>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.prodsched), N128(.update)), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
         context.control.set_proposed_producers(std::move(usact.producers));
     }
     EVT_CAPTURE_AND_RETHROW(tx_apply_exception);
@@ -1660,7 +1660,7 @@ EVT_ACTION_IMPL_BEGIN(newlock) {
 
     auto nlact = context.act.data_as<ACT>();
     try {
-        EVT_ASSERT(context.has_authorized(N128(.lock), nlact.name), action_authorize_exception, "Invalid authorization fields(domain and key).");
+        EVT_ASSERT(context.has_authorized(N128(.lock), nlact.name), action_authorize_exception, "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
         EVT_ASSERT(!tokendb.exists_token(token_type::lock, std::nullopt, nlact.name), lock_duplicate_exception,
@@ -1790,7 +1790,7 @@ EVT_ACTION_IMPL_BEGIN(aprvlock) {
 
     auto& alact = context.act.data_as<add_clr_t<ACT>>();
     try {
-        EVT_ASSERT(context.has_authorized(N128(.lock), alact.name), action_authorize_exception, "Invalid authorization fields(domain and key).");
+        EVT_ASSERT(context.has_authorized(N128(.lock), alact.name), action_authorize_exception, "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -1827,7 +1827,7 @@ EVT_ACTION_IMPL_BEGIN(tryunlock) {
     auto& tuact = context.act.data_as<add_clr_t<ACT>>();
     try {
         EVT_ASSERT(context.has_authorized(N128(.lock), tuact.name), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
@@ -2015,7 +2015,7 @@ void
 check_passive_methods(const execution_context& exec_ctx, const passive_methods& methods) {
     for(auto& it : methods) {
         // check if it's a valid action
-        EVT_ASSERT2(it.action == N(transferft) || it.action == N(everipay), bonus_method_exeption,
+        EVT_ASSERT2(it.action == N(transferft) || it.action == N(everipay), bonus_method_exception,
             "Only `transferft` and `everipay` are valid for method options");
     }
 }
@@ -2061,13 +2061,32 @@ EVT_ACTION_IMPL_BEGIN(setpsvbonus) {
 
     auto spbact = context.act.data_as<ACT>();
     try {
-        auto sym = spbact.sym;
-        EVT_ASSERT(context.has_authorized(N128(.bonus), name128::from_number(sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
-        EVT_ASSERT(sym != evt_sym(), bonus_exception, "Passive bonus cannot be registered in EVT");
-        EVT_ASSERT(sym != pevt_sym(), bonus_exception, "Passive bonus cannot be registered in Pinned EVT");
+        auto sym_id = 0u;
+        if constexpr (EVT_ACTION_VER() == 1) {
+            sym_id = spbact.sym.id();
+            EVT_ASSERT(context.has_authorized(N128(.bonus), name128::from_number(sym_id)), action_authorize_exception,
+                "Invalid authorization fields in action(domain and key).");
+        }
+        else {
+            sym_id = spbact.sym_id;
+            EVT_ASSERT(context.has_authorized(N128(.psvbonus), name128::from_number(spbact.sym_id)), action_authorize_exception,
+                "Invalid authorization fields in action(domain and key).");
+        }
 
         DECLARE_TOKEN_DB()
+
+        auto fungible = make_empty_cache_ptr<fungible_def>();
+        READ_DB_TOKEN(token_type::fungible, std::nullopt, sym_id, fungible, unknown_fungible_exception,
+            "Cannot find FT with sym id: {}", sym_id);
+
+        if constexpr (EVT_ACTION_VER() == 1) {
+            EVT_ASSERT2(fungible->sym == spbact.sym, bonus_symbol_exception, "Symbol provided is not the same as FT");
+        }
+        auto sym = fungible->sym;
+
+        EVT_ASSERT(sym != evt_sym(), bonus_symbol_exception, "Passive bonus cannot be registered in EVT");
+        EVT_ASSERT(sym != pevt_sym(), bonus_symbol_exception, "Passive bonus cannot be registered in Pinned EVT");
+
         EVT_ASSERT2(!tokendb.exists_token(token_type::psvbonus, std::nullopt, get_psvbonus_db_key(sym.id(), kPsvBonus)),
             bonus_dupe_exception, "It's now allowd to update passive bonus currently.");
 
@@ -2209,19 +2228,21 @@ EVT_ACTION_IMPL_BEGIN(distpsvbonus) {
 
     auto spbact = context.act.data_as<ACT>();
     try {
-        EVT_ASSERT(context.has_authorized(N128(.bonus), name128::from_number(spbact.sym.id())), action_authorize_exception,
-            "Invalid authorization fields(domain and key).");
+        EVT_ASSERT(context.has_authorized(N128(.psvbonus), name128::from_number(spbact.sym_id)), action_authorize_exception,
+            "Invalid authorization fields in action(domain and key).");
 
         DECLARE_TOKEN_DB()
 
         auto pb = make_empty_cache_ptr<passive_bonus>();
-        READ_DB_TOKEN(token_type::psvbonus, std::nullopt, get_psvbonus_db_key(spbact.sym.id(), kPsvBonus), pb, unknown_bonus_exception,
-            "Cannot find passive bonus registered for fungible token with sym id: {}.", spbact.sym.id());
+        READ_DB_TOKEN(token_type::psvbonus, std::nullopt, get_psvbonus_db_key(spbact.sym_id, kPsvBonus), pb, unknown_bonus_exception,
+            "Cannot find passive bonus registered for fungible token with sym id: {}.", spbact.sym_id);
+
+        auto sym = pb->dist_threshold.sym();
 
         property pbonus;
-        READ_DB_ASSET_NO_THROW(get_psvbonus_address(spbact.sym.id(), 0), spbact.sym, pbonus);
+        READ_DB_ASSET_NO_THROW(get_psvbonus_address(spbact.sym_id, 0), sym, pbonus);
         EVT_ASSERT2(pbonus.amount >= pb->dist_threshold.amount(), bonus_unreached_dist_threshold,
-            "Distribution threshold: {} is unreached, current: {}", pb->dist_threshold, asset(pbonus.amount, spbact.sym));
+            "Distribution threshold: {} is unreached, current: {}", pb->dist_threshold, asset(pbonus.amount, sym));
 
         auto bd = bonusdist();
         for(auto& rule : pb->rules) {
@@ -2263,10 +2284,10 @@ EVT_ACTION_IMPL_BEGIN(distpsvbonus) {
         UPD_DB_TOKEN(token_type::psvbonus, *pb);
 
         auto dbv = make_db_value(bd);
-        tokendb_cache.put_token(token_type::psvbonus_dist, action_op::add, std::nullopt, get_psvbonus_db_key(spbact.sym.id(), pb->round), dbv);
+        tokendb_cache.put_token(token_type::psvbonus_dist, action_op::add, std::nullopt, get_psvbonus_db_key(spbact.sym_id, pb->round), dbv);
 
         // transfer all the FTs from cllected address to distribute address of current round
-        transfer_fungible(context, get_psvbonus_address(spbact.sym.id(), 0), get_psvbonus_address(spbact.sym.id(), pb->round), asset(pbonus.amount, pbonus.sym), N(distpsvbonus), false /* pay bonus */);
+        transfer_fungible(context, get_psvbonus_address(spbact.sym_id, 0), get_psvbonus_address(spbact.sym_id, pb->round), asset(pbonus.amount, pbonus.sym), N(distpsvbonus), false /* pay bonus */);
     }
     EVT_CAPTURE_AND_RETHROW(tx_apply_exception);
 }

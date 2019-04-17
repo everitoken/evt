@@ -97,12 +97,12 @@ public:
     }
 
     int
-    get_current_version(name act) override {
+    get_current_version(name act) const override {
         return get_curr_ver(index_of(act));
     }
 
     int
-    get_max_version(name act) override {
+    get_max_version(name act) const override {
         return (int)type_names_[index_of(act)].size();
     }
 
@@ -150,6 +150,27 @@ public:
         if constexpr (!std::is_void<RType>::value) {
             return *result;
         }
+    }
+
+    template <typename T, typename Func>
+    void
+    invoke_action(const action& act, Func&& func) const {
+        auto i = hana::index_if(act_names_, hana::equal.to(hana::ulong_c<T::get_action_name().value>));
+        static_assert(i != hana::nothing, "T is not valid action type");
+
+        auto name  = act_names_[i.value()];
+        auto vers  = hana::filter(act_types_,
+            [&](auto& t) { return hana::equal(name, hana::ulong_c<decltype(+t)::type::get_action_name().value>); });
+        auto cver = curr_vers_[i.value()];
+
+        static_assert(hana::length(vers)() > hana::size_c<0>(), "empty version actions!");
+
+        hana::for_each(vers, [&, cver](auto v) {
+            using ty = typename decltype(+v)::type;
+            if(ty::get_version() == cver) {
+                func(act.data_as<const ty&>());
+            }
+        });
     }
 
     std::vector<action_ver>

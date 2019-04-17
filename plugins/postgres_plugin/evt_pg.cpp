@@ -26,8 +26,9 @@ namespace evt {
  *          add `total_supply` field to `fungibles` table
  * - 1.3.0  add `ft_holders` table
  * - 1.3.1  add serveral indexes for better query performance
+ * - 1.4.0  update `fungibles` to support transfer permission
  */
-static auto pg_version = "1.3.1";
+static auto pg_version = "1.4.0";
 
 namespace __internal {
 
@@ -247,6 +248,7 @@ auto create_fungibles_table = R"sql(CREATE TABLE IF NOT EXISTS public.fungibles
                                         sym_id       bigint                      NOT NULL,
                                         creator      character(53)               NOT NULL,
                                         issue        jsonb                       NOT NULL,
+                                        transfer     jsonb                       NOT NULL,
                                         manage       jsonb                       NOT NULL,
                                         total_supply character varying(32)       NOT NULL,
                                         metas        integer[]                   NOT NULL,
@@ -939,24 +941,26 @@ pg::upd_group(trx_context& tctx, const updategroup& ug) {
     return PG_OK;
 }
 
-PREPARE_SQL_ONCE(nf_plan, "INSERT INTO fungibles VALUES($1, $2, $3, $4, $5, $6, $7, $8, '{}', $9, now());");
+PREPARE_SQL_ONCE(nf_plan, "INSERT INTO fungibles VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, '{}', $10, now());");
 
 int
-pg::add_fungible(trx_context& tctx, const newfungible& nf) {
-    fc::variant issue, manage;
-    fc::to_variant(nf.issue, issue);
-    fc::to_variant(nf.manage, manage);
+pg::add_fungible(trx_context& tctx, const fungible_def& ft) {
+    fc::variant issue, transfer, manage;
+    fc::to_variant(ft.issue, issue);
+    fc::to_variant(ft.transfer, transfer);
+    fc::to_variant(ft.manage, manage);
 
     fmt::format_to(tctx.trx_buf_,
-        fmt("EXECUTE nf_plan('{}','{}','{}',{:d},'{}','{}','{}','{}','{}');\n"),
-        (std::string)nf.name,
-        (std::string)nf.sym_name,
-        (std::string)nf.sym,
-        (int64_t)nf.sym.id(),
-        (std::string)nf.creator,
+        fmt("EXECUTE nf_plan('{}','{}','{}',{:d},'{}','{}','{}','{}','{}','{}');\n"),
+        (std::string)ft.name,
+        (std::string)ft.sym_name,
+        (std::string)ft.sym,
+        (int64_t)ft.sym.id(),
+        (std::string)ft.creator,
         fc::json::to_string(issue),
+        fc::json::to_string(transfer),
         fc::json::to_string(manage),
-        nf.total_supply.to_string(),
+        ft.total_supply.to_string(),
         tctx.trx_id()
         );
 
@@ -964,6 +968,7 @@ pg::add_fungible(trx_context& tctx, const newfungible& nf) {
 }
 
 PREPARE_SQL_ONCE(ufi_plan, "UPDATE fungibles SET issue  = $1 WHERE sym_id = $2;");
+PREPARE_SQL_ONCE(uft_plan, "UPDATE fungibles SET transfer  = $1 WHERE sym_id = $2;");
 PREPARE_SQL_ONCE(ufm_plan, "UPDATE fungibles SET manage = $1 WHERE sym_id = $2;");
 
 int
@@ -982,6 +987,30 @@ pg::upd_fungible(trx_context& tctx, const updfungible& uf) {
     }
     return PG_OK;
 }
+
+int
+pg::upd_fungible(trx_context& tctx, const updfungible_v2& uf) {
+    if(uf.issue.has_value()) {
+        fc::variant u;
+        fc::to_variant(*uf.issue, u);
+
+        fmt::format_to(tctx.trx_buf_, fmt("EXECUTE ufi_plan('{}',{});\n"), fc::json::to_string(u), (int64_t)uf.sym_id);
+    }
+    if(uf.transfer.has_value()) {
+        fc::variant u;
+        fc::to_variant(*uf.transfer, u);
+
+        fmt::format_to(tctx.trx_buf_, fmt("EXECUTE uft_plan('{}',{});\n"), fc::json::to_string(u), (int64_t)uf.sym_id);
+    }
+    if(uf.manage.has_value()) {
+        fc::variant u;
+        fc::to_variant(*uf.manage, u);
+
+        fmt::format_to(tctx.trx_buf_, fmt("EXECUTE ufm_plan('{}',{});\n"), fc::json::to_string(u), (int64_t)uf.sym_id);
+    }
+    return PG_OK;
+}
+
 
 PREPARE_SQL_ONCE(am_plan,  "INSERT INTO metas VALUES(DEFAULT, $1, $2, $3, $4, now());");
 PREPARE_SQL_ONCE(amd_plan, "UPDATE domains SET metas = array_append(metas, $1) WHERE name = $2;");

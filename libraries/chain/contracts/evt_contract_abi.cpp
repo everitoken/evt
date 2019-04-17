@@ -467,7 +467,7 @@ evt_contract_abi() {
 
     evt_abi.structs.emplace_back( struct_def {
         "setpsvbonus_v2", "", {
-           {"sym", "symbol"},
+           {"sym_id", "symbol_id_type"},
            {"rate", "percent_slim"},
            {"base_charge", "asset"},
            {"charge_threshold", "asset?"},
@@ -480,7 +480,7 @@ evt_contract_abi() {
 
     evt_abi.structs.emplace_back( struct_def {
         "distpsvbonus", "", {
-           {"sym", "proposal_name"},
+           {"sym_id", "symbol_id_type"},
            {"deadline", "time_point"},
            {"final_receiver", "address?"}
         }

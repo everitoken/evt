@@ -126,8 +126,9 @@ public:
     int add_group(trx_context&, const newgroup&);
     int upd_group(trx_context&, const updategroup&);
 
-    int add_fungible(trx_context&, const newfungible&);
+    int add_fungible(trx_context&, const fungible_def&);
     int upd_fungible(trx_context&, const updfungible&);
+    int upd_fungible(trx_context&, const updfungible_v2&);
 
     int add_meta(trx_context&, const action_t&);
 

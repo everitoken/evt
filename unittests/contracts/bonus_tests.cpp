@@ -26,15 +26,21 @@ TEST_CASE_METHOD(contracts_test, "passive_bonus_test", "[contracts]") {
     spb.dist_threshold = asset(1'00000, get_sym());  // 1.00000
 
     auto actkey   = name128::from_number(get_sym_id());
-    auto keyseeds = std::vector<name>{ N(key2), N(payer) };
+    auto keyseeds = std::vector<name>{ N(evt), N(key2), N(payer) };
 
     // key of action is invalid
     CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), action_authorize_exception);
 
-    spb.sym = get_sym();
     // evt cannot be used to set passive bonus
-    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), bonus_exception);
+    actkey = name128::from_number(EVT_SYM_ID);
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), unsatisfied_authorization);
 
+    // symbol precision is invalid
+    actkey  = name128::from_number(get_sym_id());
+    spb.sym = symbol(10, get_sym_id());
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), bonus_symbol_exception);
+
+    spb.sym = get_sym();
     // rate is not valid
     spb.rate = 0;
     CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), bonus_percent_value_exception);
@@ -162,7 +168,7 @@ TEST_CASE_METHOD(contracts_test, "passive_bonus_test", "[contracts]") {
     spb.methods.emplace_back(passive_method{name("transferft"), passive_method_type::outside_amount});
     spb.methods.emplace_back(passive_method{name("transfer"), passive_method_type::outside_amount});
     // transfer is not valid action
-    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), bonus_method_exeption);
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, spb), keyseeds, payer), bonus_method_exception);
 
     spb.methods.erase(spb.methods.cbegin() + 1);  // transfer
     spb.methods.emplace_back(passive_method{name("everipay"), passive_method_type::within_amount});
@@ -336,14 +342,14 @@ TEST_CASE_METHOD(contracts_test, "passive_bonus_dist_test", "[contracts]") {
     auto bonus_addr = address(N(.psvbonus), actkey, 0);
 
     auto dpb     = distpsvbonus();
-    dpb.sym      = evt_sym();
+    dpb.sym_id   = evt_sym().id();
     dpb.deadline = my_tester->control->head_block_time();
 
     auto keyseeds = std::vector<name>{ N(key2), N(payer) };
-    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, dpb), keyseeds, payer), action_authorize_exception);
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.psvbonus), actkey, dpb), keyseeds, payer), action_authorize_exception);
 
-    dpb.sym = get_sym();
-    CHECK_THROWS_AS(my_tester->push_action(action(N128(.bonus), actkey, dpb), keyseeds, payer), bonus_unreached_dist_threshold);
+    dpb.sym_id = get_sym().id();
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.psvbonus), actkey, dpb), keyseeds, payer), bonus_unreached_dist_threshold);
 
     {
         property bonus;
@@ -368,7 +374,7 @@ TEST_CASE_METHOD(contracts_test, "passive_bonus_dist_test", "[contracts]") {
         CHECK(bonus.amount == 1000 + 15010 + 20000 + 15010 + 20000 * 300);
     }
 
-    my_tester->push_action(action(N128(.bonus), actkey, dpb), keyseeds, payer);
+    my_tester->push_action(action(N128(.psvbonus), actkey, dpb), keyseeds, payer);
 
     {
         property bonus;

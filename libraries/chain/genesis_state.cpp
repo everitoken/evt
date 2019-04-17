@@ -21,13 +21,10 @@ get_evt_org() {
         "name": ".everiToken",
         "key": "EVT00000000000000000000000000000000000000000000000000",
         "root": {
-            "threshold": 19,
+            "threshold": 1,
             "nodes": [
-                { "weight": 8, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" },
-                { "weight": 7, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" },
-                { "weight": 5, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" },
-                { "weight": 4, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" },
-                { "weight": 4, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" }
+                { "weight": 1, "key": "EVT6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV" },
+                { "weight": 1, "key": "EVT7edNeLHSdfmhMTUZd3o3pTBoyPRZ4fjrKU74FxJR9NgZgNZK6J" }
             ]
         }
     }

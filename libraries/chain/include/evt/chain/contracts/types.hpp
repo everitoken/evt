@@ -585,7 +585,7 @@ struct setpsvbonus {
 };
 
 struct setpsvbonus_v2 {
-    symbol          sym;
+    symbol_id_type  sym_id;
     percent_slim    rate;
     asset           base_charge;
     optional<asset> charge_threshold;
@@ -598,11 +598,17 @@ struct setpsvbonus_v2 {
 };
 
 struct distpsvbonus {
-    symbol            sym;
+    symbol_id_type    sym_id;
     time_point        deadline;
     optional<address> final_receiver;
 
     EVT_ACTION_VER1(distpsvbonus);
+};
+
+struct recvpsvbonus {
+    symbol_id_type                   sym_id;
+    small_vector<public_key_type, 2> receivers;
+    uint32_t                         rule_index;
 };
 
 }}}  // namespace evt::chain::contracts
@@ -673,5 +679,5 @@ FC_REFLECT(evt::chain::contracts::newlock, (name)(proposer)(unlock_time)(deadlin
 FC_REFLECT(evt::chain::contracts::aprvlock, (name)(approver)(data));
 FC_REFLECT(evt::chain::contracts::tryunlock, (name)(executor));
 FC_REFLECT(evt::chain::contracts::setpsvbonus, (sym)(rate)(base_charge)(charge_threshold)(minimum_charge)(dist_threshold)(rules)(methods));
-FC_REFLECT(evt::chain::contracts::setpsvbonus_v2, (sym)(rate)(base_charge)(charge_threshold)(minimum_charge)(dist_threshold)(rules)(methods));
-FC_REFLECT(evt::chain::contracts::distpsvbonus, (sym)(deadline)(final_receiver));
+FC_REFLECT(evt::chain::contracts::setpsvbonus_v2, (sym_id)(rate)(base_charge)(charge_threshold)(minimum_charge)(dist_threshold)(rules)(methods));
+FC_REFLECT(evt::chain::contracts::distpsvbonus, (sym_id)(deadline)(final_receiver));

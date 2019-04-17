@@ -242,7 +242,8 @@ FC_DECLARE_DERIVED_EXCEPTION( bonus_rules_not_fullfill,       bonus_exception,  
 FC_DECLARE_DERIVED_EXCEPTION( bonus_receiver_exception,       bonus_exception,  3041009, "Invalid receiver for bonus" );
 FC_DECLARE_DERIVED_EXCEPTION( bonus_latest_not_expired,       bonus_exception,  3041010, "Latest bonus distribution is not expired" );
 FC_DECLARE_DERIVED_EXCEPTION( bonus_unreached_dist_threshold, bonus_exception,  3041011, "Distribution threshold is unreached" );
-FC_DECLARE_DERIVED_EXCEPTION( bonus_method_exeption,          bonus_exception,  3041012, "Invalid method for passive bonus" );
+FC_DECLARE_DERIVED_EXCEPTION( bonus_method_exception,         bonus_exception,  3041012, "Invalid method for passive bonus" );
+FC_DECLARE_DERIVED_EXCEPTION( bonus_symbol_exception,         bonus_exception,  3041013, "Invalid symbol in bonus definition" );
 
 FC_DECLARE_DERIVED_EXCEPTION( producer_exception,                      chain_exception,    3050000, "Producer exception" );
 FC_DECLARE_DERIVED_EXCEPTION( producer_priv_key_not_found,             producer_exception, 3050001, "Producer private key is not available" );

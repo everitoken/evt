@@ -25,8 +25,8 @@ public:
     virtual std::string get_acttype_name(name act) const = 0;
     virtual int set_version(name act, int ver) = 0;
     virtual int set_version_unsafe(name act, int ver) = 0;
-    virtual int get_current_version(name act) = 0;
-    virtual int get_max_version(name act) = 0;
+    virtual int get_current_version(name act) const = 0;
+    virtual int get_max_version(name act) const = 0;
     virtual std::vector<action_ver> get_current_actions() const = 0;
 
 public:

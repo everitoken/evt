@@ -212,7 +212,8 @@ base_tester::push_transaction(packed_transaction& trx,
         if(!control->pending_block_state()) {
             _start_block(control->head_block_time() + fc::microseconds(config::block_interval_us));
         }
-        auto r = control->push_transaction(std::make_shared<transaction_metadata>(std::make_shared<packed_transaction>(trx)), deadline);
+        auto mtrx = std::make_shared<transaction_metadata>(std::make_shared<packed_transaction>(trx));
+        auto r    = control->push_transaction(mtrx, deadline);
 
         if(r->except_ptr) {
             std::rethrow_exception(r->except_ptr);
@@ -238,7 +239,8 @@ base_tester::push_transaction(signed_transaction& trx,
             c = packed_transaction::zlib;
         }
 
-        auto r = control->push_transaction(std::make_shared<transaction_metadata>(trx, c), deadline);
+        auto mtrx = std::make_shared<transaction_metadata>(trx, c);
+        auto r    = control->push_transaction(mtrx, deadline);
         
         if(r->except_ptr) {
             std::rethrow_exception(r->except_ptr);
