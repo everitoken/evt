@@ -17,9 +17,9 @@ class confirm_plugin : public plugin<confirm_plugin> {
 public:
     enum class confirm_mode {
         bypass = 0,     // return directly
-        strict,
+        relax,
         medium,
-        relax
+        strict
     };
 
     struct confirm_transaction_params {
