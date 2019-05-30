@@ -405,8 +405,8 @@ FC_DECLARE_DERIVED_EXCEPTION( unknown_action_exception, execution_exception, 324
 FC_DECLARE_DERIVED_EXCEPTION( action_index_exception,   execution_exception, 3240002, "Invalid action index exception" );
 FC_DECLARE_DERIVED_EXCEPTION( action_version_exception, execution_exception, 3240003, "Invalid action version exception" );
 
-FC_DECLARE_DERIVED_EXCEPTION( confirm_plugin_exception,      chain_exception, 3250000, "Confirm plugin exception" );
-FC_DECLARE_DERIVED_EXCEPTION( invalid_transaction_exception, chain_exception, 3250001, "Invalid transaction to confirm" );
-FC_DECLARE_DERIVED_EXCEPTION( invalid_rounds_exception,      chain_exception, 3250002, "Invalid rounds to confirm" );
+FC_DECLARE_DERIVED_EXCEPTION( confirm_plugin_exception,    chain_exception, 3250000, "Confirm plugin exception" );
+FC_DECLARE_DERIVED_EXCEPTION( invalid_confrim_transaction, chain_exception, 3250001, "Invalid transaction to confirm" );
+FC_DECLARE_DERIVED_EXCEPTION( invalid_rounds_rounds,       chain_exception, 3250002, "Invalid rounds to confirm" );
 
 }} // evt::chain

@@ -59,7 +59,7 @@ public:
 
 public:
     void init();
-    void add_and_schedule(const transaction_id_type& trx_id, block_num_type block_num, deferred_id id);
+    void add_and_schedule(const confirm_transaction_params& params, deferred_id id);
 
 private:
     void applied_block(const block_state_ptr& bs);
@@ -71,9 +71,10 @@ public:
     std::atomic_bool init_{false};
     uint32_t         timeout_;
 
-    uint32_t                         lib_;
-    fc::ring_vector<block_state_ptr> block_states_;
-    llvm::StringMap<trx_entry>       trx_entries_;
+    uint32_t                                lib_;
+    fc::ring_vector<block_state_ptr>        block_states_;
+    fc::ring_vector<std::vector<trx_entry>> round_trx_entries_;
+    llvm::StringMap<trx_entry>              lib_trx_entries_;
 
     std::optional<boost::signals2::scoped_connection> accepted_block_connection_;
 };
@@ -124,9 +125,30 @@ confirm_plugin_impl::response(const link_id_type& link_id, T&& response_fun) {
 }
 
 void
-confirm_plugin_impl::add_and_schedule(const transaction_id_type& trx_id, block_num_type block_num, deferred_id id) {
+confirm_plugin_impl::add_and_schedule(const confirm_transaction_params& params, deferred_id id) {
+    EVT_ASSERT(params.block_num > lib_, chain::invalid_confrim_transaction, "Provided block num is large than lib");
 
-    auto bs = block_states_[(block_num - lib_ - 1)];
+    auto n = params.block_num - lib_ - 1;
+    EVT_ASSERT(block_states_.size() >= n, chain::invalid_confrim_transaction, "Provided block num is invalid");
+
+    auto bs = block_states_[n];
+    EVT_ASSERT(bs != nullptr, chain::invalid_confrim_transaction, "Provided block num is invalid");
+
+    int found = 0;
+    for(auto& trx : bs->transactions) {
+        if(trx.id() == params.id) {
+            found = 1;
+            break;
+        }
+    }
+    EVT_ASSERT(found, chain::invalid_confrim_transaction, "Provided transaction is not found in the block");
+    EVT_ASSERT(params.rounds < 64, chain::invalid_rounds_rounds, "Provided rounds is not valid, too small or too large");
+
+    switch(params.mode) {
+    case confirm_mode::bypass: {
+        response()
+    }
+    }  // switch
 }
 
 void
