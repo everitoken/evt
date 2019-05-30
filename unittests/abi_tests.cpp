@@ -1234,7 +1234,7 @@ TEST_CASE_METHOD(abi_test, "everipass_abi_test", "[abis]") {
     // upgrade version
     get_exec_ctx().set_version("everipass", 2);
 
-    CHECK_THROWS_AS(get_var(var), pack_exception);
+    CHECK_NOTHROW(get_var(var));
     CHECK_NOTHROW(get_var(var_v2));
     CHECK(get_var(var_v2)["memo"] == "tttesttt");
 
@@ -1321,7 +1321,7 @@ TEST_CASE_METHOD(abi_test, "everipay_abi_test", "[abis]") {
     // upgrade version
     get_exec_ctx().set_version("everipay", 2);
 
-    CHECK_THROWS_AS(get_var(var), pack_exception);
+    CHECK_NOTHROW(get_var(var));
     CHECK_NOTHROW(get_var(var_v2));
     CHECK(get_var(var_v2)["memo"] == "tttesttt");
 

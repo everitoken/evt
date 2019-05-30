@@ -198,6 +198,10 @@ auto create_domains_table = R"sql(CREATE TABLE IF NOT EXISTS public.domains
                                   CREATE INDEX IF NOT EXISTS domains_creator_index
                                       ON public.domains USING btree
                                       (creator)
+                                      TABLESPACE pg_default;
+                                  CREATE INDEX IF NOT EXISTS domains_created_at_index
+                                      ON public.domains USING btree
+                                      (created_at)
                                       TABLESPACE pg_default;)sql";
  
 auto create_tokens_table = R"sql(CREATE TABLE IF NOT EXISTS public.tokens
@@ -237,6 +241,10 @@ auto create_groups_table = R"sql(CREATE TABLE IF NOT EXISTS public.groups
                                  CREATE INDEX IF NOT EXISTS groups_creator_index
                                      ON public.groups USING btree
                                      (key)
+                                     TABLESPACE pg_default;
+                                 CREATE INDEX IF NOT EXISTS groups_created_at_index
+                                     ON public.groups USING btree
+                                     (created_at)
                                      TABLESPACE pg_default;)sql";
 
 auto create_fungibles_table = R"sql(CREATE TABLE IF NOT EXISTS public.fungibles
@@ -262,6 +270,10 @@ auto create_fungibles_table = R"sql(CREATE TABLE IF NOT EXISTS public.fungibles
                                     CREATE INDEX IF NOT EXISTS fungibles_creator_index
                                         ON public.fungibles USING btree
                                         (creator)
+                                        TABLESPACE pg_default;
+                                    CREATE INDEX IF NOT EXISTS fungibles_created_at_index
+                                        ON public.fungibles USING btree
+                                        (created_at)
                                         TABLESPACE pg_default;)sql";
 
 auto create_ft_holders_table = R"sql(CREATE TABLE IF NOT EXISTS public.ft_holders

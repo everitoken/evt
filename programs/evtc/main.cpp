@@ -661,9 +661,9 @@ struct set_domain_subcommands {
         auto ndcmd = actionRoot->add_subcommand("create", localized("Create new domain"));
         ndcmd->add_option("name", name, localized("The name of new domain"))->required();
         ndcmd->add_option("creator", creator, localized("The public key of the creator"))->required();
-        ndcmd->add_option("issue", issue, localized("JSON string or filename defining ISSUE permission"), true);
-        ndcmd->add_option("transfer", transfer, localized("JSON string or filename defining TRANSFER permission"), true);
-        ndcmd->add_option("manage", manage, localized("JSON string or filename defining MANAGE permission"), true);
+        ndcmd->add_option("issue", issue, localized("JSON string or filename defining ISSUE permission"))->capture_default_str();
+        ndcmd->add_option("transfer", transfer, localized("JSON string or filename defining TRANSFER permission"))->capture_default_str();
+        ndcmd->add_option("manage", manage, localized("JSON string or filename defining MANAGE permission"))->capture_default_str();
 
         add_standard_transaction_options(ndcmd);
 
@@ -681,9 +681,9 @@ struct set_domain_subcommands {
 
         auto udcmd = actionRoot->add_subcommand("update", localized("Update existing domain"));
         udcmd->add_option("name", name, localized("The name of the updating domain"))->required();
-        udcmd->add_option("-i,--issue", issue, localized("JSON string or filename defining ISSUE permission"), true);
-        udcmd->add_option("-t,--transfer", transfer, localized("JSON string or filename defining TRANSFER permission"), true);
-        udcmd->add_option("-m,--manage", manage, localized("JSON string or filename defining MANAGE permission"), true);
+        udcmd->add_option("-i,--issue", issue, localized("JSON string or filename defining ISSUE permission"))->capture_default_str();
+        udcmd->add_option("-t,--transfer", transfer, localized("JSON string or filename defining TRANSFER permission"))->capture_default_str();
+        udcmd->add_option("-m,--manage", manage, localized("JSON string or filename defining MANAGE permission"))->capture_default_str();
 
         add_standard_transaction_options(udcmd);
 
@@ -847,8 +847,8 @@ struct set_fungible_subcommands {
         nfcmd->add_option("symbol", sym, localized("The symbol of the new fungible asset"))->required();
         nfcmd->add_option("creator", creator, localized("The public key of the creator"))->required();
         nfcmd->add_option("total-supply", total_supply, localized("Total supply of this fungible asset"))->required();
-        nfcmd->add_option("issue", issue, localized("JSON string or filename defining ISSUE permission"), true);
-        nfcmd->add_option("manage", manage, localized("JSON string or filename defining MANAGE permission"), true);
+        nfcmd->add_option("issue", issue, localized("JSON string or filename defining ISSUE permission"))->capture_default_str();
+        nfcmd->add_option("manage", manage, localized("JSON string or filename defining MANAGE permission"))->capture_default_str();
 
         add_standard_transaction_options(nfcmd);
 
@@ -870,8 +870,8 @@ struct set_fungible_subcommands {
 
         auto ufcmd = actionRoot->add_subcommand("update", localized("Update existing domain"));
         ufcmd->add_option("symbol-id", sym_id, localized("The symbol id of the updating fungible asset"))->required();
-        ufcmd->add_option("-i,--issue", issue, localized("JSON string or filename defining ISSUE permission"), true);
-        ufcmd->add_option("-m,--manage", manage, localized("JSON string or filename defining MANAGE permission"), true);
+        ufcmd->add_option("-i,--issue", issue, localized("JSON string or filename defining ISSUE permission"))->capture_default_str();
+        ufcmd->add_option("-m,--manage", manage, localized("JSON string or filename defining MANAGE permission"))->capture_default_str();
 
         add_standard_transaction_options(ufcmd);
 
@@ -989,6 +989,18 @@ struct set_assets_subcommands {
     }
 };
 
+std::string
+try_get_meta_value_from_file(const std::string& file_or_str) {
+    if(fc::is_regular_file(file_or_str)) {
+        auto fs = std::ifstream(file_or_str);
+        auto str = std::string((std::istreambuf_iterator<char>(fs)), std::istreambuf_iterator<char>());
+        return str;
+    }
+    else {
+        return file_or_str;
+    }
+}
+
 struct set_meta_subcommands {
     string domain;
     string key;
@@ -1000,7 +1012,7 @@ struct set_meta_subcommands {
     set_meta_subcommands(CLI::App* actionRoot) {
         auto addcmds = [&](auto subcmd) {
             subcmd->add_option("meta-key", metakey, localized("Key of the metadata"))->required();
-            subcmd->add_option("meta-value", metavalue, localized("Value of the metadata"))->required();
+            subcmd->add_option("meta-value", metavalue, localized("File or text of the metadata"))->required();
             subcmd->add_option("creator", creator, localized("Public key of the metadata creator"))->required();
             add_standard_transaction_options(subcmd);
         };
@@ -1011,7 +1023,7 @@ struct set_meta_subcommands {
         dmcmd->callback([this] {
             addmeta am;
             am.key = (meta_key)metakey;
-            am.value = metavalue;
+            am.value = try_get_meta_value_from_file(metavalue);
             am.creator = get_public_key(creator);
 
             auto act = create_action((domain_name)domain, N128(.meta), am);
@@ -1024,7 +1036,7 @@ struct set_meta_subcommands {
         gmcmd->callback([this] {
             addmeta am;
             am.key = (meta_key)metakey;
-            am.value = metavalue;
+            am.value = try_get_meta_value_from_file(metavalue);
             am.creator = get_public_key(creator);
 
             auto act = create_action(N128(.group), (domain_key)key, am);
@@ -1038,7 +1050,7 @@ struct set_meta_subcommands {
         tmcmd->callback([this] {
             addmeta am;
             am.key = (meta_key)metakey;
-            am.value = metavalue;
+            am.value = try_get_meta_value_from_file(metavalue);
             am.creator = get_public_key(creator);
 
             auto act = create_action((domain_name)domain, (domain_key)key, am);
@@ -1051,7 +1063,7 @@ struct set_meta_subcommands {
         fmcmd->callback([this] {
             addmeta am;
             am.key = (meta_key)metakey;
-            am.value = metavalue;
+            am.value = try_get_meta_value_from_file(metavalue);
             am.creator = get_public_key(creator);
 
             auto act = create_action(N128(.fungible), (domain_key)key, am);
@@ -1689,6 +1701,17 @@ CLI::callback_t header_opt_callback = [](CLI::results_t res) {
     return true;
 };
 
+class EVTApp : public CLI::App {
+public:
+    EVTApp(std::string app_description = "", std::string app_name = "")
+        : CLI::App(app_description, app_name) {}
+
+public:
+    void
+    pre_callback() override {
+        ensure_evtwd_running(this);
+    }
+};
 
 int
 main(int argc, char** argv) {
@@ -1703,15 +1726,14 @@ main(int argc, char** argv) {
     context = evt::client::http::create_http_context();
     wallet_url = default_wallet_url;
 
-    CLI::App app{"Command Line Interface to everiToken Client"};
+    EVTApp app{"Command Line Interface to everiToken Client"};
     app.require_subcommand();
 
-    app.add_option("-u,--url", url, localized("the http/https/unix-socket URL where evtd is running"), true);
-    app.add_option("--wallet-url", wallet_url, localized("the http/https/unix-socket URL where evtwd is running"), true);
+    app.add_option("-u,--url", url, localized("the http/https/unix-socket URL where evtd is running"))->capture_default_str();
+    app.add_option("--wallet-url", wallet_url, localized("the http/https/unix-socket URL where evtwd is running"))->capture_default_str();
 
     app.add_option( "-r,--header", header_opt_callback, localized("pass specific HTTP header; repeat this option to pass multiple headers"));
     app.add_flag( "-n,--no-verify", no_verify, localized("don't verify peer certificate when using HTTPS"));
-    app.callback([&app]{ ensure_evtwd_running(&app);});
 
     bool verbose_errors = false;
     app.add_flag("-v,--verbose", verbose_errors, localized("output verbose actions on error"));
@@ -1901,7 +1923,7 @@ main(int argc, char** argv) {
     // create wallet
     string wallet_name  = "default";
     auto   createWallet = wallet->add_subcommand("create", localized("Create a new wallet locally"));
-    createWallet->add_option("-n,--name", wallet_name, localized("The name of the new wallet"), true);
+    createWallet->add_option("-n,--name", wallet_name, localized("The name of the new wallet"))->capture_default_str();
     createWallet->callback([&wallet_name] {
         const auto& v = call(wallet_url, wallet_create, wallet_name);
         std::cout << localized("Creating wallet: ${wallet_name}", ("wallet_name", wallet_name)) << std::endl;
@@ -2000,7 +2022,7 @@ main(int argc, char** argv) {
     // create a key within wallet
     string wallet_create_key_type;
     auto createKeyInWallet = wallet->add_subcommand("create_key", localized("Create private key within wallet"));
-    createKeyInWallet->add_option("-n,--name", wallet_name, localized("The name of the wallet to create key into"), true);
+    createKeyInWallet->add_option("-n,--name", wallet_name, localized("The name of the wallet to create key into"))->capture_default_str();
     createKeyInWallet->add_option("key_type", wallet_create_key_type, localized("Key type to create (K1)"), true)->type_name("K1");
     createKeyInWallet->callback([&wallet_name, &wallet_create_key_type] {
         //an empty key type is allowed -- it will let the underlying wallet pick which type it prefers
@@ -2026,7 +2048,7 @@ main(int argc, char** argv) {
 
     // list private keys
     auto listPrivKeys = wallet->add_subcommand("private_keys", localized("List of private keys from an unlocked wallet in wif or PVT_R1 format."));
-    listPrivKeys->add_option("-n,--name", wallet_name, localized("The name of the wallet to list keys from"), true);
+    listPrivKeys->add_option("-n,--name", wallet_name, localized("The name of the wallet to list keys from"))->capture_default_str();
     listPrivKeys->add_option("--password", wallet_pw, localized("The password returned by wallet create"));
     listPrivKeys->callback([&wallet_name, &wallet_pw] {
         if(wallet_pw.size() == 0) {

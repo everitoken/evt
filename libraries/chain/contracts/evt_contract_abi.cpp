@@ -9,9 +9,14 @@
 
 namespace evt { namespace chain { namespace contracts {
 
+/**
+ * Hisotry
+ * 4.1.1: Update memo field in everipass v2 and everipay v2 to be optional
+ */
+
 static auto evt_abi_version       = 4;
 static auto evt_abi_minor_version = 1;
-static auto evt_abi_patch_version = 0;
+static auto evt_abi_patch_version = 1;
 
 version
 evt_contract_abi_version() {
@@ -382,7 +387,7 @@ evt_contract_abi() {
     evt_abi.structs.emplace_back( struct_def {
         "everipass_v2", "", {
            {"link", "evt_link"},
-           {"memo", "string"}
+           {"memo", "string?"}
         }
     });
 
@@ -399,7 +404,7 @@ evt_contract_abi() {
            {"link", "evt_link"},
            {"payee", "address"},
            {"number", "asset"},
-           {"memo", "string"}
+           {"memo", "string?"}
         }
     });
 

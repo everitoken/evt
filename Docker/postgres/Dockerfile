@@ -1,6 +1,6 @@
-FROM postgres:11.2
+FROM postgres:11.3
 
-LABEL author="Harry <harrywong@live.com>" maintainer="Harry <harrywong@live.com>" version="1.0.0" \
+LABEL author="Harry <harrywong@live.com>" maintainer="Harry <harrywong@live.com>" version="1.2.0" \
   description="This is customized PostgreSQL image with pg_pathman support"
 
 ARG POSTGRES_DEV_VERSION=11
@@ -25,7 +25,7 @@ ENV AUTH="trust"
 
 RUN mkdir -p $PGDATA
 RUN cp /usr/share/postgresql/postgresql.conf.sample $PGDATA/postgresql.conf
-RUN sed -i -e "s/#include_dir = 'conf.d'/include_dir = 'conf.d'/" $PGDATA/postgresql.conf
+RUN sed -i -e "s/#include_dir = ''/include_dir = 'conf.d'/" $PGDATA/postgresql.conf
 COPY conf.d $PGDATA/conf.d/
 
 RUN mkdir -p /docker-entrypoint-initdb.d

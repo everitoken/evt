@@ -523,8 +523,8 @@ struct everipass {
 };
 
 struct everipass_v2 {
-    evt_link link;
-    string   memo;
+    evt_link         link;
+    optional<string> memo;
 
     EVT_ACTION_VER2(everipass, everipass_v2);
 };
@@ -538,10 +538,10 @@ struct everipay {
 };
 
 struct everipay_v2 {
-    evt_link link;
-    address  payee;
-    asset    number;
-    string   memo;
+    evt_link         link;
+    address          payee;
+    asset            number;
+    optional<string> memo;
 
     EVT_ACTION_VER2(everipay, everipay_v2);
 };

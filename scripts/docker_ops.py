@@ -263,8 +263,9 @@ def upgrade(ctx, data_volume):
 @click.option('--host', '-h', default='127.0.0.1', help='Host address for postgres')
 @click.option('--password', '-x', default='', help='Password for \'postgres\' user, leave empty to disable password (anyone can login)')
 @click.option('--data-volume', '-d', default=None, help='Set one host path for data folder in postgres instead using volume')
+@click.option('--shm-size', default='1g', help='Shared memory size for container')
 @click.pass_context
-def create(ctx, net, port, host, password, data_volume):
+def create(ctx, net, port, host, password, data_volume, shm_size):
     name = ctx.obj['name']
     image = 'everitoken/postgres:latest'
     volume_name = '{}-data-volume'.format(name)
@@ -319,7 +320,8 @@ def create(ctx, net, port, host, password, data_volume):
                              environment={
                                  'AUTH': auth,
                                  'POSTGRES_PASSWORD': password
-                             })
+                             },
+                             shm_size=shm_size)
     click.echo('{} container is created'.format(green(name)))
 
     if len(password) > 0:
@@ -864,8 +866,9 @@ def getsnapshot(ctx, snapshot):
 @click.option('--postgres-db', default=None, help='Name of database in postgres, if set, postgres and history plugins will be enabled')
 @click.option('--postgres-pass', default='', help='Password for postgres')
 @click.option('--data-volume', '-d', default=None, help='Set one host path for data folder in evtd instead using volume')
+@click.option('--shm-size', default='1g', help='Shared memory size for container')
 @click.pass_context
-def create(ctx, net, http_port, p2p_port, host, postgres_name, postgres_db, postgres_pass, data_volume, type, arguments):
+def create(ctx, net, http_port, p2p_port, host, postgres_name, postgres_db, postgres_pass, data_volume, type, shm_size, arguments):
     name = ctx.obj['name']
     volume_name = '{}-data-volume'.format(name)
     volume2_name = '{}-snapshots-volume'.format(name)
@@ -952,6 +955,7 @@ def create(ctx, net, http_port, p2p_port, host, postgres_name, postgres_db, post
                              entrypoint=entry,
                              cap_add=['SYS_PTRACE'],
                              security_opt=['apparmor:unconfined'],
+                             shm_size=shm_size
                              )
     click.echo('{} container is created'.format(green(name)))
 
@@ -1051,7 +1055,7 @@ def create(ctx, net, http, host, http_port, arguments):
     entry = 'evtwd.sh --unix-socket-path=/opt/evt/data/wallet/evtwd.sock'
     ports = {}
     if http:
-        entry += ' --listen-http'
+        entry += ' --listen-http --http-server-address=0.0.0.0:9999'
         if http_port != 0:
             ports['9999/tcp'] = (host, http_port)
 

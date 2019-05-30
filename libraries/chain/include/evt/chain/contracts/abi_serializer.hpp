@@ -680,7 +680,7 @@ abi_serializer::to_variant(const T& o, variant& vo, const execution_context& exe
         impl::abi_to_variant::add(mvo, "_", o, ctx);
         vo = std::move(mvo["_"]);
     }
-    FC_RETHROW_EXCEPTIONS(error, "Failed to serialize type", ("object", o))
+    FC_RETHROW_EXCEPTIONS(error, "Failed to serialize: ${type}", ("type", boost::core::demangle(typeid(o).name())));
 }
 
 template <typename T>

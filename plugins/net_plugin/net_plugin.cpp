@@ -494,6 +494,7 @@ public:
     transaction_state_index                  trx_state;
     optional<sync_state>                     peer_requested;  // this peer is requesting info from us
     std::shared_ptr<boost::asio::io_context> server_ioc; // keep ioc alive
+    boost::asio::io_context::strand          strand;
     socket_ptr                               socket;
 
     fc::message_buffer<1024 * 1024> pending_message_buffer;
@@ -572,9 +573,6 @@ public:
     /** @} */
 
     const string peer_name();
-
-    void txn_send_pending(const vector<transaction_id_type>& ids);
-    void txn_send(const vector<transaction_id_type>& txn_lis);
 
     void blk_send_branch();
     void blk_send(const block_id_type& blkid);
@@ -718,6 +716,7 @@ connection::connection(string endpoint)
     , trx_state()
     , peer_requested()
     , server_ioc(my_impl->server_ioc)
+    , strand(app().get_io_service())
     , socket(std::make_shared<tcp::socket>(std::ref(*my_impl->server_ioc)))
     , node_id()
     , last_handshake_recv()
@@ -742,6 +741,7 @@ connection::connection(socket_ptr s)
     , trx_state()
     , peer_requested()
     , server_ioc(my_impl->server_ioc)
+    , strand(app().get_io_service())
     , socket(s)
     , node_id()
     , last_handshake_recv()
@@ -814,30 +814,8 @@ connection::close() {
     my_impl->sync_master->reset_lib_num(shared_from_this());
     fc_dlog(logger, "canceling wait on ${p}", ("p", peer_name()));
     cancel_wait();
-    if(read_delay_timer)
+    if(read_delay_timer) {
         read_delay_timer->cancel();
-    pending_message_buffer.reset();
-}
-
-void
-connection::txn_send_pending(const vector<transaction_id_type>& ids) {
-    const std::set<transaction_id_type, sha256_less> known_ids(ids.cbegin(), ids.cend());
-    my_impl->expire_local_txns();
-    for(auto tx = my_impl->local_txns.begin(); tx != my_impl->local_txns.end(); ++tx) {
-        const bool found = known_ids.find(tx->id) != known_ids.cend();
-        if(!found) {
-            queue_write(tx->serialized_txn, true, priority::low, [](boost::system::error_code ec, std::size_t) {});
-        }
-    }
-}
-
-void
-connection::txn_send(const vector<transaction_id_type>& ids) {
-    for(const auto& t : ids) {
-        auto tx = my_impl->local_txns.get<by_id>().find(t);
-        if(tx != my_impl->local_txns.end()) {
-            queue_write(tx->serialized_txn, true, priority::low, [](boost::system::error_code ec, std::size_t) {});
-        }
     }
 }
 
@@ -981,7 +959,7 @@ connection::do_queue_write(int priority) {
     std::vector<boost::asio::const_buffer> bufs;
     buffer_queue.fill_out_buffer(bufs);
 
-    boost::asio::async_write(*socket, bufs, [c, priority](boost::system::error_code ec, std::size_t w) {
+    boost::asio::async_write(*socket, bufs, boost::asio::bind_executor(strand, [c, priority](boost::system::error_code ec, std::size_t w) {
         app().post(priority, [c, priority, ec, w]() {
             try {
                 auto conn = c.lock();
@@ -1021,7 +999,7 @@ connection::do_queue_write(int priority) {
                 fc_elog(logger, "Exception in do_queue_write to ${p}", ("p", pname));
             }
         });
-    });
+    }));
 }
 
 void
@@ -1892,7 +1870,7 @@ net_plugin_impl::connect(const connection_ptr& c) {
     connection_wptr      weak_conn = c;
     // Note: need to add support for IPv6 too
 
-    resolver->async_resolve(query,
+    resolver->async_resolve(query, boost::asio::bind_executor(c->strand,
         [weak_conn, this](const boost::system::error_code& err, tcp::resolver::iterator endpoint_itr) {
             app().post(priority::low, [err, endpoint_itr, weak_conn, this]() {
                 auto c = weak_conn.lock();
@@ -1906,7 +1884,7 @@ net_plugin_impl::connect(const connection_ptr& c) {
                          ("peer_addr", c->peer_name())("error", err.message()));
                 }
             });
-        });
+        }));
 }
 
 void
@@ -1917,9 +1895,10 @@ net_plugin_impl::connect(const connection_ptr& c, tcp::resolver::iterator endpoi
     }
     auto current_endpoint = *endpoint_itr;
     ++endpoint_itr;
-    c->connecting             = true;
+    c->connecting = true;
+    c->pending_message_buffer.reset();
     connection_wptr weak_conn = c;
-    c->socket->async_connect(current_endpoint, [weak_conn, endpoint_itr, this](const boost::system::error_code& err) {
+    c->socket->async_connect(current_endpoint, boost::asio::bind_executor(c->strand, [weak_conn, endpoint_itr, this](const boost::system::error_code& err) {
         app().post(priority::low, [weak_conn, endpoint_itr, this, err]() {
             auto c = weak_conn.lock();
             if(!c)
@@ -1941,7 +1920,7 @@ net_plugin_impl::connect(const connection_ptr& c, tcp::resolver::iterator endpoi
                 }
             }
         });
-    });
+    }));
 }
 
 bool
@@ -2077,24 +2056,25 @@ net_plugin_impl::start_read_message(const connection_ptr& conn) {
                 return;
             }
             conn->read_delay_timer->expires_from_now(def_read_delay_for_full_write_queue);
-            conn->read_delay_timer->async_wait(
-                app().get_priority_queue().wrap(priority::low, [this, weak_conn](boost::system::error_code) {
+            conn->read_delay_timer->async_wait([this, weak_conn](boost::system::error_code ec) {
+                app().post(priority::low, [this, weak_conn]() {
                     auto conn = weak_conn.lock();
                     if(!conn)
                         return;
                     start_read_message(conn);
-                })
-            );
+                });
+            });
             return;
         }
 
         ++conn->reads_in_flight;
         boost::asio::async_read(*conn->socket,
             conn->pending_message_buffer.get_buffer_sequence_for_boost_async_read(), completion_handler,
+            boost::asio::bind_executor(conn->strand,
             [this, weak_conn](boost::system::error_code ec, std::size_t bytes_transferred) {
                 app().post(priority::medium, [this,weak_conn, ec, bytes_transferred]() {
                     auto conn = weak_conn.lock();
-                    if(!conn) {
+                    if(!conn || !conn->socket || !conn->socket->is_open()) {
                         return;
                     }
 
@@ -2177,7 +2157,7 @@ net_plugin_impl::start_read_message(const connection_ptr& conn) {
                         close(conn);
                     }
                 });
-        });
+        }));
     }
     catch(...) {
         string pname = conn ? conn->peer_name() : "no connection name";
@@ -2457,17 +2437,6 @@ net_plugin_impl::handle_message(const connection_ptr& c, const notice_message& m
         break;
     }
     case catch_up: {
-        if(msg.known_trx.pending > 0) {
-            // plan to get all except what we already know about.
-            req.req_trx.mode = catch_up;
-            send_req         = true;
-            size_t known_sum = local_txns.size();
-            if(known_sum) {
-                for(const auto& t : local_txns.get<by_id>()) {
-                    req.req_trx.ids.push_back(t.id);
-                }
-            }
-        }
         break;
     }
     case normal: {
@@ -2525,14 +2494,18 @@ net_plugin_impl::handle_message(const connection_ptr& c, const request_message& 
 
     switch(msg.req_trx.mode) {
     case catch_up:
-        c->txn_send_pending(msg.req_trx.ids);
-        break;
-    case normal:
-        c->txn_send(msg.req_trx.ids);
         break;
     case none:
         if(msg.req_blocks.mode == none)
             c->stop_send();
+        // no break
+        [[fallthrough]];
+    case normal:
+        if(!msg.req_trx.ids.empty()) {
+            elog("Invalid request_message, req_trx.ids.size ${s}", ("s", msg.req_trx.ids.size()));
+            close(c);
+            return;
+        }
         break;
     default:;
     }
