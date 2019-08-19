@@ -249,6 +249,10 @@ block_log::reset(const genesis_state& gs, const signed_block_ptr& first_block, u
     if(first_block) {
         append(first_block);
     }
+    else {
+        my->head.reset();
+        my->head_id = {};
+    }
 
     auto pos = my->block_stream.tellp();
 
