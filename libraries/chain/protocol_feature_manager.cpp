@@ -134,7 +134,7 @@ Allows contracts to determine which account is the sender of an inline action.
 */
             {}
         })
-        (builtin_protocol_feature_t::ram_restrictions, builtin_protocol_feature_spec{
+        (builtin_protocol_feature_t::ram_restrictions, builtin_protocol_feature_spec {
             "RAM_RESTRICTIONS",
             fc::variant("1812fdb5096fd854a4958eb9d53b43219d114de0e858ce00255bd46569ad2c68").as<digest_type>(),
             // SHA256 hash of the raw message below within the comment delimiters (do not modify message below).
