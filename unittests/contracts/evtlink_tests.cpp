@@ -108,7 +108,7 @@ TEST_CASE_METHOD(contracts_test, "everipay_test", "[contracts]") {
     auto ep   = everipay();
     ep.link   = link;
     ep.payee  = poorer;
-    ep.number = asset::from_string("0.50000 S#1");
+    ep.number = asset::from_string("0.00001 S#1");
 
     auto sign_link = [&](auto& l) {
         l.clear_signatures();
@@ -168,6 +168,7 @@ TEST_CASE_METHOD(contracts_test, "everipay_test", "[contracts]") {
     ep.link.add_segment(evt_link::segment(evt_link::timestamp, head_ts - 5));
     sign_link(ep.link);
     CHECK_NOTHROW(my_tester->push_action(action(N128(.fungible), N128(1), ep), key_seeds, payer));
+    link = ep.link;
 
     // link id is duplicate
     ep.link.add_segment(evt_link::segment(evt_link::timestamp, head_ts));
@@ -220,17 +221,32 @@ TEST_CASE_METHOD(contracts_test, "everipay_test", "[contracts]") {
     sign_link(ep.link);
     CHECK_THROWS_AS(my_tester->push_action(action(N128(.fungible), N128(1), ep), key_seeds, payer), everipay_exception);
 
+
     // number and sym id are not match
     ep.number = asset::from_string("500.00000 S#2");
     ep.link.add_segment(evt_link::segment(evt_link::link_id, "JKHBJKBJKGJHGJKE"));
     sign_link(ep.link);
     CHECK_THROWS_AS(my_tester->push_action(action(N128(.fungible), N128(1), ep), key_seeds, payer), everipay_exception);
 
+    ep.link.add_segment(evt_link::segment(evt_link::link_id, "KIJHNHFMJDFFUKJJ"));
+    ep.link.add_segment(evt_link::segment(evt_link::fixed_amount, 50000));
+    ep.number = asset::from_string("0.50000 S#1");
+    ep.payee  = poorer;
+    sign_link(ep.link);
+    CHECK_NOTHROW(my_tester->push_action(action(N128(.fungible), N128(1), ep), key_seeds, payer));
+
+    ep.link.add_segment(evt_link::segment(evt_link::fixed_amount, 500000));
+    ep.link.add_segment(evt_link::segment(evt_link::link_id, "KIJHNHFMJDFFUKJP"));
+    sign_link(ep.link);
+    CHECK_THROWS_AS(my_tester->push_action(action(N128(.fungible), N128(1), ep), key_seeds, payer), everipay_exception);
+
     // test everipay ver1
     auto ep_v2   = everipay_v2();
-    ep_v2.link   = ep.link;
+    link.add_segment(evt_link::segment(evt_link::link_id, "KIJHNHFMJDFFUKKK"));
+    sign_link(link);
+    ep_v2.link   = link;
     ep_v2.payee  = poorer;
-    ep_v2.number = asset::from_string("0.50000 S#1");
+    ep_v2.number = asset::from_string("0.00001 S#1");
     ep_v2.memo   = "tttesttt";
 
     // version not upgrade

@@ -239,7 +239,6 @@ def pre_action():
     trx.add_action(issuefungible2)
     trx.add_sign(priv_evt)
     trx.add_sign(user.priv_key)
-    # trx.set_payer(user.pub_key.to_string())
 
     newsuspend = AG.new_action(
         'newsuspend', name='suspend', proposer=user.pub_key, trx=trx)
@@ -306,19 +305,18 @@ def pre_action():
     resp = api.push_transaction(trx.dumps())
     print(resp)
    
-
     trx = TG.new_trx()
-    trx.add_action(destroytoken)
-    trx.add_action(everipass)
-    trx.add_action(everipay)
+    trx.add_action(setpsvbonus)
+    trx.add_sign(priv_evt)
     trx.add_sign(user.priv_key)
     trx.set_payer(user.pub_key.to_string())
     resp = api.push_transaction(trx.dumps())
     print(resp)
 
     trx = TG.new_trx()
-    trx.add_action(setpsvbonus)
-    trx.add_sign(priv_evt)
+    trx.add_action(destroytoken)
+    trx.add_action(everipass)
+    trx.add_action(everipay)
     trx.add_sign(user.priv_key)
     trx.set_payer(user.pub_key.to_string())
     resp = api.push_transaction(trx.dumps())
@@ -338,146 +336,6 @@ class Test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         libevt.init_lib()
-
-    def _test_evt_link_response(self, resp):
-        j = json.loads(resp)
-        self.assertTrue('trx_id' in j, msg=j)
-        self.assertTrue('block_num' in j, msg=j)
-
-        req = {
-            'block_num': j['block_num'],
-            'id': j['trx_id']
-        }
-        resp2 = api.get_transaction(json.dumps(req))
-        self.assertEqual(resp2.status_code, 200, msg=resp2.content)
-
-    def test_evt_link_for_trx_id(self):
-        symbol = base.Symbol(
-            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
-        asset = base.new_asset(symbol)
-
-        pay_link = evt_link.EvtLink()
-        pay_link.set_timestamp(int(time.time()))
-        pay_link.set_max_pay(999999999)
-        pay_link.set_header(evt_link.HeaderType.version1.value |
-                            evt_link.HeaderType.everiPay.value)
-        pay_link.set_symbol_id(sym_id)
-        pay_link.set_link_id_rand()
-        pay_link.sign(user.priv_key)
-
-        everipay = AG.new_action('everipay', payee=pub2, number=asset(
-            1), link=pay_link.to_string())
-        trx = TG.new_trx()
-        trx.add_action(everipay)
-        trx.add_sign(user.priv_key)
-        trx.set_payer(user.pub_key.to_string())
-        api.push_transaction(trx.dumps())
-
-        req = {
-            'link_id': 'ddc101c51318d51733d682e80b8ea2bc'
-        }
-        req['link_id'] = pay_link.get_link_id().hex()
-        for i in range(1000):
-            resp = api.get_trx_id_for_link_id(json.dumps(req)).text
-            self._test_evt_link_response(resp)
-
-    def test_evt_link_for_trx_id2(self):
-        symbol = base.Symbol(
-            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
-        asset = base.new_asset(symbol)
-
-        pay_link = evt_link.EvtLink()
-        pay_link.set_timestamp(int(time.time()))
-        pay_link.set_max_pay(999999999)
-        pay_link.set_header(evt_link.HeaderType.version1.value |
-                            evt_link.HeaderType.everiPay.value)
-        pay_link.set_symbol_id(sym_id)
-        pay_link.set_link_id_rand()
-        pay_link.sign(user.priv_key)
-
-        everipay = AG.new_action('everipay', payee=pub2, number=asset(
-            1), link=pay_link.to_string())
-        trx = TG.new_trx()
-        trx.add_action(everipay)
-        trx.add_sign(user.priv_key)
-        trx.set_payer(user.pub_key.to_string())
-
-        req = {
-            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
-        }
-        req['link_id'] = pay_link.get_link_id().hex()
-
-        def get_response(req):
-            return api.get_trx_id_for_link_id(json.dumps(req)).text
-
-        executor = ThreadPoolExecutor(max_workers=2)
-        f = executor.submit(get_response, req)
-
-        time.sleep(1)
-        api.push_transaction(trx.dumps())
-
-        resp = f.result()
-        self._test_evt_link_response(resp)
-
-    def test_evt_link_for_trx_id3(self):
-        symbol = base.Symbol(
-            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
-        asset = base.new_asset(symbol)
-        pay_link = evt_link.EvtLink()
-        pay_link.set_timestamp(int(time.time()))
-        pay_link.set_max_pay(999999999)
-        pay_link.set_header(evt_link.HeaderType.version1.value |
-                            evt_link.HeaderType.everiPay.value)
-        pay_link.set_symbol_id(sym_id)
-        pay_link.set_link_id_rand()
-        pay_link.sign(user.priv_key)
-
-        req = {
-            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
-        }
-
-        url = 'http://127.0.0.1:8888/v1/evt_link/get_trx_id_for_link_id'
-
-        tasks = []
-        for i in range(200):
-            pay_link.set_link_id_rand()
-            req['link_id'] = pay_link.get_link_id().hex()
-            tasks.append(grequests.post(url, data=json.dumps(req)))
-
-        for resp in grequests.imap(tasks, size=1000):
-            self.assertEqual(resp.status_code, 500, msg=resp.content)
-
-    def test_evt_link_for_trx_id4(self):
-        symbol = base.Symbol(
-            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
-        asset = base.new_asset(symbol)
-        pay_link = evt_link.EvtLink()
-        pay_link.set_timestamp(int(time.time()))
-        pay_link.set_max_pay(999999999)
-        pay_link.set_header(evt_link.HeaderType.version1.value |
-                            evt_link.HeaderType.everiPay.value)
-        pay_link.set_symbol_id(sym_id)
-        pay_link.set_link_id_rand()
-        pay_link.sign(user.priv_key)
-
-        req = {
-            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
-        }
-
-        url = 'http://127.0.0.1:8888/v1/evt_link/get_trx_id_for_link_id'
-
-        tasks = []
-        for i in range(1024):
-            pay_link.set_link_id_rand()
-            req['link_id'] = pay_link.get_link_id().hex()
-            tasks.append(grequests.post(url, data=json.dumps(req)))
-
-        i = 0
-        for resp in grequests.imap(tasks, size=128):
-            self.assertEqual(resp.status_code, 500, msg=resp.content)
-            i += 1
-            if i % 100 == 0:
-                print('Received {} responses'.format(i))
 
     def test_get_domains(self):
         req = {
@@ -578,7 +436,7 @@ class Test(unittest.TestCase):
         res_dict = json.loads(resp)
         self.assertTrue(type(res_dict) is list)
         self.assertEqual(len(res_dict), 1, msg=resp)
-        self.assertEqual(res_dict[0], '2.98000 S#3', msg=resp)
+        self.assertEqual(res_dict[0], '0.99000 S#3', msg=resp)
 
     def test_get_history_assets(self):
         req = {
@@ -598,7 +456,7 @@ class Test(unittest.TestCase):
         res_dict = json.loads(resp)
         self.assertTrue(type(res_dict) is list)
         self.assertEqual(len(res_dict), 1, msg=resp)
-        self.assertEqual(res_dict[0], '2.98000 S#3', msg=resp)
+        self.assertEqual(res_dict[0], '0.99000 S#3', msg=resp)
 
     def test_get_actions(self):
         req = {
@@ -764,7 +622,7 @@ class Test(unittest.TestCase):
 
         resp = api.get_actions(json.dumps(req)).text
         res_dict = json.loads(resp)
-        self.assertEqual(len(res_dict), 3, msg=resp)
+        self.assertEqual(len(res_dict), 1, msg=resp)
         self.assertTrue('trx_id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('name' in res_dict[0].keys(), msg=resp)
         self.assertTrue('domain' in res_dict[0].keys(), msg=resp)
@@ -812,26 +670,6 @@ class Test(unittest.TestCase):
         self.assertTrue('newlock' in resp, msg=resp)
         self.assertTrue('timestamp' in resp, msg=resp)
 
-    def test_batch_get_actions(self):
-        req = {
-            'domain': '.fungible',
-            'skip': 0,
-            'take': 10
-        }
-
-        url = 'http://127.0.0.1:8888/v1/history/get_actions'
-
-        tasks = []
-        for i in range(10240):
-            tasks.append(grequests.post(url, data=json.dumps(req)))
-
-        i = 0
-        for resp in grequests.imap(tasks, size=1023):
-            self.assertEqual(resp.status_code, 200, msg=resp.content)
-            i += 1
-            if i % 100 == 0:
-                print('Received {} responses'.format(i))
-
     def test_get_fungible_actions(self):
         req = {
             'sym_id': 338422621,
@@ -844,7 +682,7 @@ class Test(unittest.TestCase):
 
         resp = api.get_fungible_actions(json.dumps(req)).text
         res_dict = json.loads(resp)
-        self.assertEqual(len(res_dict), 6, msg=resp)
+        self.assertEqual(len(res_dict), 3, msg=resp)
         self.assertTrue('trx_id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('name' in res_dict[0].keys(), msg=resp)
         self.assertTrue('domain' in res_dict[0].keys(), msg=resp)
@@ -865,7 +703,7 @@ class Test(unittest.TestCase):
 
         resp = api.get_fungible_actions(json.dumps(req)).text
         res_dict = json.loads(resp)
-        self.assertEqual(len(res_dict), 6, msg=resp)
+        self.assertEqual(len(res_dict), 3, msg=resp)
         self.assertTrue('trx_id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('name' in res_dict[0].keys(), msg=resp)
         self.assertTrue('domain' in res_dict[0].keys(), msg=resp)
@@ -884,14 +722,14 @@ class Test(unittest.TestCase):
 
         resp = api.get_fungible_actions(json.dumps(req)).text
         res_dict = json.loads(resp)
-        self.assertEqual(len(res_dict), 6, msg=resp)
+        self.assertEqual(len(res_dict), 3, msg=resp)
         self.assertTrue('trx_id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('name' in res_dict[0].keys(), msg=resp)
         self.assertTrue('domain' in res_dict[0].keys(), msg=resp)
         self.assertTrue('key' in res_dict[0].keys(), msg=resp)
         self.assertTrue('data' in res_dict[0].keys(), msg=resp)
         self.assertTrue('timestamp' in res_dict[0].keys(), msg=resp)
-        self.assertEqual(res_dict[1]['name'], 'everipay', msg=resp)
+        self.assertEqual(res_dict[1]['name'], 'paybonus', msg=resp)
         self.assertTrue(str(sym_id) in resp, msg=resp)
 
         req = {
@@ -905,7 +743,7 @@ class Test(unittest.TestCase):
 
         resp = api.get_fungible_actions(json.dumps(req)).text
         res_dict = json.loads(resp)
-        self.assertEqual(len(res_dict), 6, msg=resp)
+        self.assertEqual(len(res_dict), 3, msg=resp)
         self.assertTrue('trx_id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('name' in res_dict[0].keys(), msg=resp)
         self.assertTrue('domain' in res_dict[0].keys(), msg=resp)
@@ -984,13 +822,13 @@ class Test(unittest.TestCase):
         resp = api.get_history_transactions(json.dumps(req)).text
         res_dict = json.loads(resp)
 
-        self.assertEqual(len(res_dict), 10, msg=resp)
+        self.assertEqual(len(res_dict), 9, msg=resp)
         self.assertTrue('id' in res_dict[0].keys(), msg=resp)
         self.assertTrue('signatures' in res_dict[0].keys(), msg=resp)
         self.assertTrue('compression' in res_dict[0].keys(), msg=resp)
         self.assertTrue('packed_trx' in res_dict[0].keys(), msg=resp)
         self.assertTrue('transaction' in res_dict[0].keys(), msg=resp)
-        self.assertEqual('.fungible', res_dict[0]['transaction']['actions'][0]['domain'], msg=resp)
+        self.assertEqual('.lock', res_dict[0]['transaction']['actions'][0]['domain'], msg=resp)
         self.assertTrue(group_name in resp, msg=resp)
         self.assertTrue(str(sym_id) in resp, msg=resp)
 
@@ -1002,6 +840,11 @@ class Test(unittest.TestCase):
 
         resp = api.get_fungible_ids(json.dumps(req)).text
         self.assertTrue(str(sym_id) in resp, msg=resp)
+
+class PressureTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        libevt.init_lib()
 
     def test_block(self):
         symbol = base.Symbol(
@@ -1065,14 +908,175 @@ class Test(unittest.TestCase):
             if i % 100 == 0:
                 print('Received {} responses'.format(i))
 
+    def _test_evt_link_response(self, resp):
+        j = json.loads(resp)
+        self.assertTrue('trx_id' in j, msg=j)
+        self.assertTrue('block_num' in j, msg=j)
+
+        req = {
+            'block_num': j['block_num'],
+            'id': j['trx_id']
+        }
+        resp2 = api.get_transaction(json.dumps(req))
+        self.assertEqual(resp2.status_code, 200, msg=resp2.content)
+
+    def test_evt_link_for_trx_id(self):
+        symbol = base.Symbol(
+            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
+        asset = base.new_asset(symbol)
+
+        pay_link = evt_link.EvtLink()
+        pay_link.set_timestamp(int(time.time()))
+        pay_link.set_max_pay(999999999)
+        pay_link.set_header(evt_link.HeaderType.version1.value |
+                            evt_link.HeaderType.everiPay.value)
+        pay_link.set_symbol_id(sym_id)
+        pay_link.set_link_id_rand()
+        pay_link.sign(user.priv_key)
+
+        everipay = AG.new_action('everipay', payee=pub2, number=asset(
+            1), link=pay_link.to_string())
+        trx = TG.new_trx()
+        trx.add_action(everipay)
+        trx.add_sign(user.priv_key)
+        trx.set_payer(user.pub_key.to_string())
+        api.push_transaction(trx.dumps())
+
+        req = {
+            'link_id': 'ddc101c51318d51733d682e80b8ea2bc'
+        }
+        req['link_id'] = pay_link.get_link_id().hex()
+        for i in range(1000):
+            resp = api.get_trx_id_for_link_id(json.dumps(req)).text
+            self._test_evt_link_response(resp)
+
+    def test_evt_link_for_trx_id2(self):
+        symbol = base.Symbol(
+            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
+        asset = base.new_asset(symbol)
+
+        pay_link = evt_link.EvtLink()
+        pay_link.set_timestamp(int(time.time()))
+        pay_link.set_max_pay(999999999)
+        pay_link.set_header(evt_link.HeaderType.version1.value |
+                            evt_link.HeaderType.everiPay.value)
+        pay_link.set_symbol_id(sym_id)
+        pay_link.set_link_id_rand()
+        pay_link.sign(user.priv_key)
+
+        everipay = AG.new_action('everipay', payee=pub2, number=asset(
+            1), link=pay_link.to_string())
+        trx = TG.new_trx()
+        trx.add_action(everipay)
+        trx.add_sign(user.priv_key)
+        trx.set_payer(user.pub_key.to_string())
+
+        req = {
+            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
+        }
+        req['link_id'] = pay_link.get_link_id().hex()
+
+        def get_response(req):
+            return api.get_trx_id_for_link_id(json.dumps(req)).text
+
+        executor = ThreadPoolExecutor(max_workers=2)
+        f = executor.submit(get_response, req)
+
+        time.sleep(1)
+        api.push_transaction(trx.dumps())
+
+        resp = f.result()
+        self._test_evt_link_response(resp)
+
+    def test_evt_link_for_trx_id3(self):
+        symbol = base.Symbol(
+            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
+        asset = base.new_asset(symbol)
+        pay_link = evt_link.EvtLink()
+        pay_link.set_timestamp(int(time.time()))
+        pay_link.set_max_pay(999999999)
+        pay_link.set_header(evt_link.HeaderType.version1.value |
+                            evt_link.HeaderType.everiPay.value)
+        pay_link.set_symbol_id(sym_id)
+        pay_link.set_link_id_rand()
+        pay_link.sign(user.priv_key)
+
+        req = {
+            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
+        }
+
+        url = 'http://127.0.0.1:8888/v1/evt_link/get_trx_id_for_link_id'
+
+        tasks = []
+        for i in range(200):
+            pay_link.set_link_id_rand()
+            req['link_id'] = pay_link.get_link_id().hex()
+            tasks.append(grequests.post(url, data=json.dumps(req)))
+
+        for resp in grequests.imap(tasks, size=1000):
+            self.assertEqual(resp.status_code, 500, msg=resp.content)
+
+    def test_evt_link_for_trx_id4(self):
+        symbol = base.Symbol(
+            sym_name=sym_name, sym_id=sym_id, precision=sym_prec)
+        asset = base.new_asset(symbol)
+        pay_link = evt_link.EvtLink()
+        pay_link.set_timestamp(int(time.time()))
+        pay_link.set_max_pay(999999999)
+        pay_link.set_header(evt_link.HeaderType.version1.value |
+                            evt_link.HeaderType.everiPay.value)
+        pay_link.set_symbol_id(sym_id)
+        pay_link.set_link_id_rand()
+        pay_link.sign(user.priv_key)
+
+        req = {
+            'link_id': 'd1680fea21a3c3d8ef555afd8fd8c903'
+        }
+
+        url = 'http://127.0.0.1:8888/v1/evt_link/get_trx_id_for_link_id'
+
+        tasks = []
+        for i in range(1024):
+            pay_link.set_link_id_rand()
+            req['link_id'] = pay_link.get_link_id().hex()
+            tasks.append(grequests.post(url, data=json.dumps(req)))
+
+        i = 0
+        for resp in grequests.imap(tasks, size=128):
+            self.assertEqual(resp.status_code, 500, msg=resp.content)
+            i += 1
+            if i % 100 == 0:
+                print('Received {} responses'.format(i))
+
+    def test_batch_get_actions(self):
+        req = {
+            'domain': '.fungible',
+            'skip': 0,
+            'take': 10
+        }
+
+        url = 'http://127.0.0.1:8888/v1/history/get_actions'
+
+        tasks = []
+        for i in range(10240):
+            tasks.append(grequests.post(url, data=json.dumps(req)))
+
+        i = 0
+        for resp in grequests.imap(tasks, size=1023):
+            self.assertEqual(resp.status_code, 200, msg=resp.content)
+            i += 1
+            if i % 100 == 0:
+                print('Received {} responses'.format(i))
+
 
 @click.command()
 @click.option('--url', '-u', default='http://127.0.0.1:8888')
-@click.option('--start-evtd', '-s', default=True)
+@click.option('--start-evtd', '-s',type=bool, default=True)
 @click.option('--evtd-path', '-m', default='/home/laighno/Documents/evt/programs/evtd/evtd')
 @click.option('--public-key', '-p', type=str, default='EVT8CAme1QR2664bLQsVfrERBkXL3xEKsALMSfogGavaXFkaVVqR1')
 @click.option('--private-key', '-k', type=str, default='5JFZQ7bRRuBJyh42uV5ELwswr2Bt3rfwmyEsyXAoUue18NUreAF')
-def main(url, start_evtd, evtd_path, public_key, private_key):
+@click.option('--pressure-test', type=bool, default=False)
+def main(url, start_evtd, evtd_path, public_key, private_key, pressure_test):
     global evtdout
     evtdout = None
 
@@ -1086,7 +1090,7 @@ def main(url, start_evtd, evtd_path, public_key, private_key):
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=evtdout, shell=False)
         
         # wait for evtd to initialize
-        time.sleep(3)
+        time.sleep(5)
 
     try:
         global domain_name
@@ -1126,9 +1130,14 @@ def main(url, start_evtd, evtd_path, public_key, private_key):
         AG = action.ActionGenerator()
 
         pre_action()
-        suite = unittest.TestLoader().loadTestsFromTestCase(Test)
+        suite1 = unittest.TestLoader().loadTestsFromTestCase(Test)
         runner = unittest.TextTestRunner()
-        result = runner.run(suite)
+        runner.run(suite1)
+        print(type(pressure_test))
+        print(pressure_test)
+        if pressure_test:
+            suite2 = unittest.TestLoader().loadTestsFromTestCase(PressureTest)
+            runner.run(suite2)
     finally:
         if p is not None:
             p.kill()
