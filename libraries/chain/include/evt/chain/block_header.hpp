@@ -7,25 +7,8 @@
 #include <type_traits>
 #include <evt/chain/block_timestamp.hpp>
 #include <evt/chain/producer_schedule.hpp>
-#include <evt/chain/protocol_feature_activation.hpp>
 
 namespace evt { namespace chain {
-
-namespace detail {
-
-template<typename... Ts>
-    struct block_header_extension_types {
-    using block_header_extensions_t = fc::static_variant< Ts... >;
-    using decompose_t = decompose< Ts... >;
-};
-
-}  // namespace detail
-
-using block_header_extension_types = detail::block_header_extension_types<
-    protocol_feature_activation
->;
-
-using block_header_extensions = block_header_extension_types::block_header_extensions_t;
 
 struct block_header {
     block_timestamp_type timestamp;
@@ -53,7 +36,6 @@ struct block_header {
      */
     uint32_t                         schedule_version = 0;
     optional<producer_schedule_type> new_producers;
-    extensions_type                  header_extensions;
 
     block_header() = default;
 
@@ -81,7 +63,7 @@ struct header_confirmation {
 }}  // namespace evt::chain
 
 FC_REFLECT(evt::chain::block_header, (timestamp)(producer)(confirmed)(previous)(transaction_mroot)(action_mroot)
-                                     (schedule_version)(new_producers)(header_extensions));
+                                     (schedule_version)(new_producers));
 
 FC_REFLECT_DERIVED(evt::chain::signed_block_header, (evt::chain::block_header), (producer_signature));
 FC_REFLECT(evt::chain::header_confirmation, (block_id)(producer)(producer_signature));
