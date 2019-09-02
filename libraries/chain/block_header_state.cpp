@@ -1,11 +1,6 @@
-/**
- *  @file
- *  @copyright defined in evt/LICENSE.txt
- */
-#include <limits>
-
 #include <evt/chain/block_header_state.hpp>
 #include <evt/chain/exceptions.hpp>
+#include <limits>
 
 namespace evt { namespace chain {
 
@@ -59,12 +54,11 @@ block_header_state::next(block_timestamp_type when,
                    ("prod", prokey.producer_name)("num", block_num + 1)("confirmed", num_prev_blocks_to_confirm)("last_produced", itr->second));
     }
 
-    result.block_num                        = block_num + 1;
-    result.previous                         = id;
-    result.timestamp                        = when;
-    result.confirmed                        = num_prev_blocks_to_confirm;
-    result.active_schedule_version          = active_schedule.version;
-    result.prev_activated_protocol_features = activated_protocol_features;
+    result.block_num               = block_num + 1;
+    result.previous                = id;
+    result.timestamp               = when;
+    result.confirmed               = num_prev_blocks_to_confirm;
+    result.active_schedule_version = active_schedule.version;
 
     result.block_signing_key = prokey.block_signing_key;
     result.producer          = prokey.producer_name;
@@ -181,8 +175,7 @@ signed_block_header
 pending_block_header_state::make_block_header(
     const checksum256_type&            transaction_mroot,
     const checksum256_type&            action_mroot,
-    optional<producer_schedule_type>&& new_producers,
-    vector<digest_type>&&              new_protocol_feature_activations) const {
+    optional<producer_schedule_type>&& new_producers) const {
     signed_block_header h;
 
     h.timestamp         = timestamp;
@@ -193,12 +186,6 @@ pending_block_header_state::make_block_header(
     h.action_mroot      = action_mroot;
     h.schedule_version  = active_schedule_version;
     h.new_producers     = std::move(new_producers);
-
-    if(new_protocol_feature_activations.size() > 0) {
-        h.header_extensions.emplace_back(
-            protocol_feature_activation::extension_id(),
-            fc::raw::pack(protocol_feature_activation{std::move(new_protocol_feature_activations)}));
-    }
 
     return h;
 }
@@ -222,31 +209,12 @@ pending_block_header_state::_finish_next(
                    "cannot set new pending producers until last pending is confirmed");
     }
 
-    protocol_feature_activation_set_ptr new_activated_protocol_features;
-
-    auto exts = h.validate_and_extract_header_extensions();
-    {
-        if(exts.size() > 0) {
-            const auto& new_protocol_features = exts.front().get<protocol_feature_activation>().protocol_features;
-            validator(timestamp, prev_activated_protocol_features->protocol_features, new_protocol_features);
-
-            new_activated_protocol_features = std::make_shared<protocol_feature_activation_set>(
-                *prev_activated_protocol_features,
-                new_protocol_features);
-        }
-        else {
-            new_activated_protocol_features = std::move(prev_activated_protocol_features);
-        }
-    }
-
     auto block_number = block_num;
 
     block_header_state result(std::move(*static_cast<detail::block_header_state_common*>(this)));
 
     result.id     = h.id();
     result.header = h;
-
-    result.header_exts = std::move(exts);
 
     if(h.new_producers) {
         result.pending_schedule.schedule         = *h.new_producers;
@@ -264,18 +232,13 @@ pending_block_header_state::_finish_next(
         result.pending_schedule.schedule_lib_num = prev_pending_schedule.schedule_lib_num;
     }
 
-    result.activated_protocol_features = std::move(new_activated_protocol_features);
-
     return result;
 }
 
 block_header_state
 pending_block_header_state::finish_next(
-    const signed_block_header&                             h,
-    const std::function<void(block_timestamp_type,
-                             const flat_set<digest_type>&,
-                             const vector<digest_type>&)>& validator,
-    bool                                                   skip_validate_signee) && {
+    const signed_block_header& h,
+    bool                       skip_validate_signee) && {
     auto result = std::move(*this)._finish_next(h, validator);
 
     // ASSUMPTION FROM controller_impl::apply_block = all untrusted blocks will have their signatures pre-validated here
@@ -289,11 +252,8 @@ pending_block_header_state::finish_next(
 block_header_state
 pending_block_header_state::finish_next(
     signed_block_header&                                     h,
-    const std::function<void(block_timestamp_type,
-                             const flat_set<digest_type>&,
-                             const vector<digest_type>&)>&   validator,
     const std::function<signature_type(const digest_type&)>& signer) && {
-    auto result = std::move(*this)._finish_next(h, validator);
+    auto result = std::move(*this)._finish_next(h);
     result.sign(signer);
     h.producer_signature = result.header.producer_signature;
     return result;
@@ -309,12 +269,9 @@ pending_block_header_state::finish_next(
  */
 block_header_state
 block_header_state::next(
-    const signed_block_header&                             h,
-    const std::function<void(block_timestamp_type,
-                             const flat_set<digest_type>&,
-                             const vector<digest_type>&)>& validator,
-    bool                                                   skip_validate_signee) const {
-    return next(h.timestamp, h.confirmed).finish_next(h, validator, skip_validate_signee);
+    const signed_block_header& h,
+    bool                       skip_validate_signee) const {
+    return next(h.timestamp, h.confirmed).finish_next(h, skip_validate_signee);
 }
 
 digest_type
@@ -341,19 +298,6 @@ block_header_state::verify_signee(const public_key_type& signee) const {
     EVT_ASSERT(block_signing_key == signee, wrong_signing_key,
                "block not signed by expected key",
                ("block_signing_key", block_signing_key)("signee", signee));
-}
-
-/**
- *  Reference cannot outlive *this. Assumes header_exts is not mutated after instatiation.
- */
-const vector<digest_type>&
-block_header_state::get_new_protocol_feature_activations() const {
-    static const vector<digest_type> no_activations{};
-
-    if(header_exts.size() == 0 || !header_exts.front().contains<protocol_feature_activation>())
-        return no_activations;
-
-    return header_exts.front().get<protocol_feature_activation>().protocol_features;
 }
 
 }}  // namespace evt::chain
